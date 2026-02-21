@@ -17,9 +17,6 @@ Install [uv](https://docs.astral.sh/uv/getting-started/installation/) and then c
 
 ```shell
 git clone "https://github.com/tsoj/Chess_diagram_to_FEN.git"
-# Or use as git submodule
-# git submodule add "https://github.com/tsoj/Chess_diagram_to_FEN"
-
 cd Chess_diagram_to_FEN
 ```
 
@@ -31,11 +28,18 @@ uv sync --extra cuda    # CUDA 12.8  (NVIDIA GPUs)
 uv sync --extra rocm    # ROCm 6.4   (AMD GPUs, Linux only)
 ```
 
+If you want to use this repository as a dependency inside another Python project, install it as editable:
+
+```shell
+# from the consuming project (you might need to adjust the path to Chess_diagram_to_FEN)
+uv add --editable ../Chess_diagram_to_FEN
+```
+
 ## Usage
 
 ```python
 from PIL import Image
-from Chess_diagram_to_FEN.chess_diagram_to_fen import get_fen
+from chess_diagram_to_fen import get_fen
 
 img = Image.open("your_image.jpg")
 result = get_fen(
@@ -129,5 +133,3 @@ uv run python main.py eval image_rotation
 <img src="./resources/examples/failure/failure_4.jpg" width="600px" style="border-radius: 20px;">
 
 <img src="./resources/examples/failure/failure_5.jpg" width="600px" style="border-radius: 20px;">
-
-
