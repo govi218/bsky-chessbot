@@ -10,21 +10,72 @@ authors = [
 ]
 description = "Convert images of chess diagrams into FENs"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
 dependencies = [
-  "matplotlib ~= 3.8.2",
-  "scikit-image ~= 0.25.2",
-  "tqdm ~= 4.66.1",
-  "python-chess ~= 1.999",
-  "cairosvg ~= 2.7.1",
-  "pyfastnoisesimd ~= 0.4.2"
+  "Pillow",
+  "numpy",
+  "matplotlib",
+  "scikit-image",
+  "tqdm",
+  "python-chess",
+  "cairosvg",
+  "pyfastnoisesimd"
 ]
+
+[project.optional-dependencies]
+# PyTorch backend — pick exactly one when running uv sync:
+#   uv sync --extra cpu     → CPU (works everywhere, no GPU required)
+#   uv sync --extra cuda    → CUDA 12.8  (NVIDIA GPUs)
+#   uv sync --extra rocm    → ROCm 6.4   (AMD GPUs, Linux only)
+cpu  = ["torch", "torchvision"]
+cuda = ["torch", "torchvision"]
+rocm = ["torch", "torchvision", "pytorch-triton-rocm"]
+train-data = ["gdown"]
 
 [project.urls]
 Homepage = "https://github.com/tsoj/Chess_diagram_to_FEN"
 Issues = "https://github.com/tsoj/Chess_diagram_to_FEN/issues"
+
+[tool.uv]
+conflicts = [
+  [
+    { extra = "cpu" },
+    { extra = "cuda" },
+    { extra = "rocm" },
+  ],
+]
+
+[tool.uv.sources]
+torch = [
+  { index = "pytorch-cpu",  extra = "cpu" },
+  { index = "pytorch-cuda", extra = "cuda" },
+  { index = "pytorch-rocm", extra = "rocm" },
+]
+torchvision = [
+  { index = "pytorch-cpu",  extra = "cpu" },
+  { index = "pytorch-cuda", extra = "cuda" },
+  { index = "pytorch-rocm", extra = "rocm" },
+]
+pytorch-triton-rocm = [
+  { index = "pytorch-rocm", extra = "rocm" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cuda"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-rocm"
+url = "https://download.pytorch.org/whl/rocm6.4"
+explicit = true
