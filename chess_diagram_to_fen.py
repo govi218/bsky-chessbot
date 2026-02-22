@@ -7,11 +7,11 @@ import os
 from dataclasses import dataclass
 from PIL import Image, ImageOps
 from pathlib import Path
-from src.bounding_box.model import ChessBoardBBox
-from src.fen_recognition.model import ChessRec
+from src.bounding_box.model import BoardBBox
+from src.fen_recognition.model import BoardRec
 from src.board_orientation.model import OrientationModel
 from src.board_image_rotation.model import ImageRotation
-from src.existence.model import ChessExistence
+from src.existence.model import BoardExistence
 import src.fen_recognition.dataset as fen_dataset
 import src.board_image_rotation.dataset as rotation_dataset
 
@@ -56,11 +56,11 @@ class SomeModel:
 script_dir = os.path.abspath(os.path.dirname(__file__))
 
 chess_existence = SomeModel(
-    ChessExistence,
+    BoardExistence,
     script_dir + "/models/best_model_existence_0.998_2024-04-16-23-44-48.pth",
 )
 bbox_model = SomeModel(
-    ChessBoardBBox,
+    BoardBBox,
     script_dir + "/models/best_model_bbox_0.958_2024-01-28-22-49-40.pth",
 )
 image_rotation_model = SomeModel(
@@ -68,7 +68,7 @@ image_rotation_model = SomeModel(
     script_dir + "/models/best_model_image_rotation_0.996_2024-04-14-22-59-55.pth",
 )
 fen_model = SomeModel(
-    ChessRec,
+    BoardRec,
     script_dir + "/models/best_model_fen_0.943_2024-04-19-09-31-24.pth",
 )
 orientation_model = SomeModel(

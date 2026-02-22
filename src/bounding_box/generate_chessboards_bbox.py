@@ -16,9 +16,9 @@ TARGET_SIZE = consts.BOARD_PIXEL_WIDTH * 2
 def generate_bbox_training_data(
     outdir="resources/chessboards_bbox_images/chessboards_bbox",
     background_root_dir="resources/website_screenshots",
-    board_root_dir="resources/fen_images/generated_chessboards_fen",
+    board_root_dir="resources/fen_images/generated_board_positions",
     num_total_out_positions=50000,
-    chessboard_middleground_probability=0.4,
+    board_middleground_probability=0.4,
 ):
     os.makedirs(outdir, exist_ok=True)
 
@@ -67,11 +67,15 @@ def generate_bbox_training_data(
 
         # Get the dimensions of the second image
         board_image_width, board_image_height = board_image.size
-        new_size = random.randint(
-            min(crop_width, crop_height, board_image_width // 2),
-            min(crop_width, crop_height),
-        )
-        board_image = board_image.resize((new_size, new_size))
+        board_aspect = board_image_width / max(board_image_height, 1)
+        max_w = min(crop_width, max(4, int(crop_height * board_aspect)))
+        max_h = min(crop_height, max(4, int(crop_width / max(board_aspect, 1e-6))))
+        new_width = random.randint(max(4, min(max_w, board_image_width // 2)), max_w)
+        new_height = max(4, int(new_width / max(board_aspect, 1e-6)))
+        if new_height > max_h:
+            new_height = max_h
+            new_width = max(4, int(new_height * board_aspect))
+        board_image = board_image.resize((new_width, new_height))
         board_image_width, board_image_height = board_image.size
 
         assert board_image_width <= crop_width
@@ -84,7 +88,7 @@ def generate_bbox_training_data(
         center_x = board_x + board_image_width // 2
         center_y = board_y + board_image_height // 2
 
-        if random.uniform(0.0, 1.0) < chessboard_middleground_probability:
+        if random.uniform(0.0, 1.0) < board_middleground_probability:
             # we randomly select a maximum relative size to the foreground board since the size of
             # the middleground board would otherwise be biased towards being bigger than the foreground board
             # because of the way we make sure that the boards have to overlap

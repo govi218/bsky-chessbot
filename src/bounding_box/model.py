@@ -6,9 +6,9 @@ from src import consts
 from torchvision import models
 
 
-class ChessBoardBBox(nn.Module):
+class BoardBBox(nn.Module):
     def __init__(self):
-        super(ChessBoardBBox, self).__init__()
+        super(BoardBBox, self).__init__()
 
         self.model = models.segmentation.lraspp_mobilenet_v3_large()
         self.model.classifier = models.segmentation.lraspp.LRASPPHead(40, 960, 1, 128)
@@ -42,6 +42,10 @@ class ChessBoardBBox(nn.Module):
 
 
 if __name__ == "__main__":
-    model = ChessBoardBBox()
+    model = BoardBBox()
 
     print(torch.cuda.is_available())
+
+
+# Backward compatibility alias
+ChessBoardBBox = BoardBBox

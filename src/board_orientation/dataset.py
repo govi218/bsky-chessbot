@@ -3,19 +3,21 @@ import torch
 from torch.utils.data import Dataset
 
 from src import common
+from src.games import get_game
 from src.pgn_parser import iter_pgn_games, parse_pgn_game, parse_variant_tag, replay_moves_to_fens
 
 
-class ChessBoardOrientationDataset(Dataset):
+class BoardOrientationDataset(Dataset):
 
-    def __init__(self, pgn_file_name, rotate_probability=0.3, max=100000):
+    def __init__(self, pgn_file_name, game: str = "chess", rotate_probability=0.3, max=100000):
+        self.game = get_game(game)
         self.board_list = []
         self.rotate_probability = rotate_probability
 
         for game_text in iter_pgn_games(pgn_file_name):
             parsed = parse_pgn_game(game_text)
-            variant, chess960 = parse_variant_tag(parsed.tags.get("Variant", "chess"))
-            if variant != "chess":
+            variant, chess960 = parse_variant_tag(parsed.tags.get("Variant", self.game.key))
+            if variant != self.game.key:
                 continue
 
             initial_fen = parsed.tags.get("FEN")
@@ -30,7 +32,7 @@ class ChessBoardOrientationDataset(Dataset):
                 continue
 
             for fen in fens:
-                position = common.position_from_notation(fen, game="chess")
+                position = common.position_from_notation(fen, game=self.game)
                 if position is not None:
                     self.board_list.append(position)
                 if len(self.board_list) >= max:
@@ -48,21 +50,25 @@ class ChessBoardOrientationDataset(Dataset):
     def __getitem__(self, idx):
         rotate = random.uniform(0.0, 1.0) < self.rotate_probability
 
-        input = common.chess_board_to_tensor(self.board_list[idx])
+        input = common.position_to_tensor(self.board_list[idx])
         if rotate:
-            input = common.rotate_board_tensor(input)
+            input = common.rotate_tensor_180(input, self.game)
 
         return (input, torch.tensor([1.0 if rotate else 0.0]))
 
 
-def test_data_set():
+ChessBoardOrientationDataset = BoardOrientationDataset
+
+
+def test_data_set(game: str = "chess"):
     pgn_file = "resources/lichess_games/lichess_db_standard_rated_2013-05.pgn"
 
-    c = ChessBoardOrientationDataset(pgn_file, max=100)
+    spec = get_game(game)
+    c = BoardOrientationDataset(pgn_file, game=spec, max=100)
 
     for i in range(0, len(c)):
         input, target = c[i]
 
         assert not input.isnan().any()
-        print(common.tensor_to_chess_board(input).fen())
+        print(common.tensor_to_position(input, game=spec).fen())
         print("flipped:", target.item() == 1.0)

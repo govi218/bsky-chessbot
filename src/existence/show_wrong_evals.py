@@ -2,7 +2,7 @@ import torch
 import matplotlib.pyplot as plt
 
 from src.existence import dataset
-from src.existence.model import ChessExistence
+from src.existence.model import BoardExistence
 
 
 def show_wrong_existence(model_path="models/best_model_existence_0.998_2024-04-16-23-44-48.pth"):
@@ -17,7 +17,7 @@ def show_wrong_existence(model_path="models/best_model_existence_0.998_2024-04-1
         max=max_data,
     )
 
-    model = ChessExistence()
+    model = BoardExistence()
     model.load_state_dict(torch.load(model_path, map_location=torch.device("cpu")))
     model.eval()
 

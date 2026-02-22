@@ -107,7 +107,7 @@ class BoardImageDataset(Dataset):
 
 def test_data_set():
 
-    root_dir = "resources/fen_images/generated_chessboards_fen"
+    root_dir = "resources/fen_images/generated_board_positions"
 
     dataset = BoardImageDataset(root_dir, max=1000)
 

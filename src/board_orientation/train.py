@@ -48,6 +48,7 @@ def train(
     train_test_split=0.7,
     max_data=200000,
     rotate_probability=0.3,  # we don't rotate half of the time, since in reality, the majority of chess diagrams will be depicted from the white side
+    game: str = "chess",
 ):
     start_time_string = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
     print(start_time_string)
@@ -57,13 +58,15 @@ def train(
     else:
         print("Using CPU")
 
-    train_set = dataset.ChessBoardOrientationDataset(
+    train_set = dataset.BoardOrientationDataset(
         pgn_file_name=train_pgn_file,
+        game=game,
         rotate_probability=rotate_probability,
         max=max_data,
     )
-    test_set = dataset.ChessBoardOrientationDataset(
+    test_set = dataset.BoardOrientationDataset(
         pgn_file_name=test_pgn_file,
+        game=game,
         rotate_probability=rotate_probability,
         max=int(len(train_set) * (1.0 - train_test_split)),
     )

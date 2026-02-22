@@ -6,9 +6,9 @@ from src import consts
 from torchvision import models
 
 
-class ChessExistence(nn.Module):
+class BoardExistence(nn.Module):
     def __init__(self):
-        super(ChessExistence, self).__init__()
+        super(BoardExistence, self).__init__()
 
         self.model = models.regnet_x_800mf(
             weights=models.RegNet_X_800MF_Weights.IMAGENET1K_V2
@@ -20,3 +20,7 @@ class ChessExistence(nn.Module):
 
     def forward(self, x):
         return self.model(x)
+
+
+# Backward compatibility alias
+ChessExistence = BoardExistence

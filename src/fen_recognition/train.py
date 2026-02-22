@@ -1,19 +1,21 @@
-# Import modules
+import datetime
+import os
+
+import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import matplotlib.pyplot as plt
 
+from src import common, consts
 from src.fen_recognition import dataset
-from src.fen_recognition.model import ChessRec
-from src import common
-import os
-import datetime
+from src.fen_recognition.model import BoardRec
+from src.games import get_game
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-def get_accuracy_and_loss(loader, model, criterion):
+def get_accuracy_and_loss(loader, model, criterion, game: str):
+    spec = get_game(game)
     num_correct = 0
     num_samples = 0
     loss = 0.0
@@ -31,10 +33,7 @@ def get_accuracy_and_loss(loader, model, criterion):
 
             assert output.size(0) == target.size(0)
             for i in range(0, output.size(0)):
-                if (
-                    common.tensor_to_chess_board(output[i]).fen()
-                    == common.tensor_to_chess_board(target[i]).fen()
-                ):
+                if common.tensor_to_position(output[i], spec).piece_placement == common.tensor_to_position(target[i], spec).piece_placement:
                     num_correct += 1
 
             num_samples += target.size(0)
@@ -49,41 +48,41 @@ TEST_ACC_FREQ = 4000
 def train(
     data_root_dir="resources/fen_images/",
     outdir="models",
-    total_steps=600_000,  # can also be (significantly) smaller while still producing acceptable results
+    total_steps=600_000,
     batch_size=8,
     max_lr=0.001,
     train_test_split=0.97,
     lr_schedule_pct_start=0.3,
     max_data=None,
-    checkpoint=None
+    checkpoint=None,
+    game: str = "chess",
+    tile_size: int = consts.DEFAULT_TILE_SIZE,
 ):
+    spec = get_game(game)
+
     start_time_string = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
     print(start_time_string)
-
     if device.type == "cuda":
         print("Using GPU:", torch.cuda.get_device_name())
     else:
         print("Using CPU")
+    print("Game:", spec.key)
 
-    chess_board_set = dataset.ChessBoardDataset(
+    board_set = dataset.BoardPositionDataset(
         root_dir=data_root_dir,
+        game=spec,
+        tile_size=tile_size,
         augment_ratio=0.8,
         affine_augment_ratio=0.8,
         max=max_data,
         device=device,
     )
-    train_set, test_set = torch.utils.data.random_split(
-        chess_board_set, [train_test_split, 1.0 - train_test_split]
-    )
+    train_set, test_set = torch.utils.data.random_split(board_set, [train_test_split, 1.0 - train_test_split])
 
-    train_loader = torch.utils.data.DataLoader(
-        train_set, batch_size=batch_size, shuffle=True, drop_last=True
-    )
-    test_loader = torch.utils.data.DataLoader(
-        test_set, batch_size=batch_size, shuffle=False, drop_last=True
-    )
+    train_loader = torch.utils.data.DataLoader(train_set, batch_size=batch_size, shuffle=True, drop_last=True)
+    test_loader = torch.utils.data.DataLoader(test_set, batch_size=batch_size, shuffle=False, drop_last=True)
 
-    model = ChessRec()
+    model = BoardRec(game=spec.key, tile_size=tile_size)
     if checkpoint is not None:
         model.load_state_dict(torch.load(checkpoint, map_location=torch.device("cpu")))
         print("Using checkpoint:", checkpoint)
@@ -92,7 +91,10 @@ def train(
     criterion = nn.MSELoss()
     optimizer = optim.AdamW(model.parameters())
     scheduler = optim.lr_scheduler.OneCycleLR(
-        optimizer, max_lr=max_lr, total_steps=total_steps, pct_start=lr_schedule_pct_start
+        optimizer,
+        max_lr=max_lr,
+        total_steps=total_steps,
+        pct_start=lr_schedule_pct_start,
     )
 
     test_loss_list = []
@@ -105,12 +107,10 @@ def train(
         running_loss = 0.0
 
         for i, (img, target) in enumerate(train_loader):
-            # Move data to device
             img = img.to(device)
             target = target.to(device)
 
             optimizer.zero_grad()
-
             output = model(img)
 
             loss = criterion(output, target)
@@ -119,7 +119,6 @@ def train(
             scheduler.step()
 
             num_steps += 1
-
             running_loss += loss.item()
 
             if (i + 1) % LOSS_REPORT_FREQ == 0:
@@ -136,15 +135,10 @@ def train(
                 running_loss = 0.0
 
             if (i + 1) % TEST_ACC_FREQ == 0 or num_steps >= total_steps:
-                test_acc, test_loss = get_accuracy_and_loss(
-                    test_loader, model, criterion
-                )
+                test_acc, test_loss = get_accuracy_and_loss(test_loader, model, criterion, game=spec.key)
                 test_loss_list.append(test_loss)
                 test_acc_list.append(test_acc)
-                print(
-                    "Num steps: %d, Test Loss: %.4f, Test Acc: %.3f"
-                    % (num_steps, test_loss_list[-1], test_acc_list[-1])
-                )
+                print("Num steps: %d, Test Loss: %.4f, Test Acc: %.3f" % (num_steps, test_loss_list[-1], test_acc_list[-1]))
 
                 if test_acc > best_acc:
                     best_acc = test_acc
@@ -155,11 +149,10 @@ def train(
                 break
 
     os.makedirs(outdir, exist_ok=True)
-    file_name = outdir + "/best_model_fen_%.3f_%s.pth" % (best_acc, start_time_string)
+    file_name = outdir + "/best_model_position_%s_%.3f_%s.pth" % (spec.key, best_acc, start_time_string)
     print("Saving to", file_name)
     torch.save(best_model, file_name)
 
-    # Plot the loss and accuracy curves
     plt.figure(figsize=(12, 4))
     plt.subplot(1, 2, 1)
     plt.plot(test_loss_list, label="Test Loss")

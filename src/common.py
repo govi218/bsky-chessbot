@@ -305,6 +305,33 @@ def tensor_to_chess_board(tensor: torch.Tensor) -> Position:
     return Position(game=CHESS.key, piece_placement=pp)
 
 
+def position_to_tensor(position: Position) -> torch.Tensor:
+    grid = parse_piece_placement(position.piece_placement, position.game)
+    return grid_to_tensor(grid, position.game)
+
+
+def tensor_to_position(
+    tensor: torch.Tensor,
+    game: str | GameSpec,
+    side_to_move: str = "w",
+    castling: str = "-",
+    en_passant: str = "-",
+    halfmove_clock: int = 0,
+    fullmove_number: int = 1,
+) -> Position:
+    spec = get_game(game)
+    grid = tensor_to_grid(tensor, spec)
+    return Position(
+        game=spec.key,
+        piece_placement=grid_to_piece_placement(grid, spec),
+        side_to_move=side_to_move,
+        castling=castling,
+        en_passant=en_passant,
+        halfmove_clock=halfmove_clock,
+        fullmove_number=fullmove_number,
+    )
+
+
 def flip_color(tensor: torch.Tensor):
     return flip_color_tensor(tensor, CHESS)
 

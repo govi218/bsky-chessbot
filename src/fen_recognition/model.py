@@ -1,102 +1,92 @@
 import torch
 import torch.nn as nn
 
-from src import consts, common
+from src import consts
+from src.games import get_game
 
 from torchvision import models
 
 
 def get_tile_model():
-
     result = models.regnet_x_800mf(weights=models.RegNet_X_800MF_Weights.IMAGENET1K_V2)
     result.fc = nn.Sequential(
         torch.nn.LazyLinear(out_features=512),
         nn.ReLU(),
     )
-
-    # print(result)
-    # assert False
     return result
 
 
 def get_full_img_model():
-
     result = models.regnet_x_800mf(weights=models.RegNet_X_800MF_Weights.IMAGENET1K_V2)
     result.fc = nn.Sequential(
         torch.nn.LazyLinear(out_features=512),
         nn.ReLU(),
     )
-
-    # print(result)
-    # assert False
     return result
 
 
-def get_dense_model():
+def get_dense_model(out_features: int):
     return nn.Sequential(
         torch.nn.LazyLinear(out_features=768),
         nn.ReLU(),
         torch.nn.LazyLinear(out_features=512),
         nn.ReLU(),
-        torch.nn.LazyLinear(out_features=len(common.PIECE_TYPES)),
+        torch.nn.LazyLinear(out_features=out_features),
     )
 
 
-class ChessRec(nn.Module):
-    def __init__(self):
-        super(ChessRec, self).__init__()
+class BoardRec(nn.Module):
+    def __init__(self, game: str = "chess", tile_size: int = consts.DEFAULT_TILE_SIZE):
+        super().__init__()
+        self.game = get_game(game)
+        self.tile_size = tile_size
+        self.board_h, self.board_w = consts.board_pixel_size(self.game, tile_size)
+        self.num_squares = self.game.num_squares
+        self.out_channels = len(self.game.piece_symbols) + 1
 
         self.tile = get_tile_model()
-
         self.full = get_full_img_model()
-
-        self.dense = get_dense_model()
+        self.dense = get_dense_model(self.out_channels)
 
     def forward(self, img):
         batch_size, ch, h, w = img.shape
 
-        assert h == consts.BOARD_PIXEL_WIDTH
-        assert w == consts.BOARD_PIXEL_WIDTH
+        assert h == self.board_h
+        assert w == self.board_w
         assert ch == 3
 
         x = img
-        x = x.unfold(2, consts.SQUARE_SIZE, consts.SQUARE_SIZE)
-        x = x.unfold(3, consts.SQUARE_SIZE, consts.SQUARE_SIZE)
+        x = x.unfold(2, self.tile_size, self.tile_size)
+        x = x.unfold(3, self.tile_size, self.tile_size)
         x = x.permute(0, 2, 3, 1, 4, 5)
 
-        assert list(x.shape) == [
-            batch_size,
-            8,
-            8,
+        x = x.reshape(
+            batch_size * self.game.board_rows * self.game.board_cols,
             ch,
-            consts.SQUARE_SIZE,
-            consts.SQUARE_SIZE,
-        ]
-
-        x = x.reshape(batch_size * 8 * 8, ch, consts.SQUARE_SIZE, consts.SQUARE_SIZE)
+            self.tile_size,
+            self.tile_size,
+        )
 
         x = self.tile(x)
-        assert len(x.shape) == 2, "Should be [batch_size, flattened]"
-
-        x = x.reshape(batch_size, 64, -1)
+        x = x.reshape(batch_size, self.num_squares, -1)
 
         z = self.full(img)
-        assert len(z.shape) == 2, "Should be [batch_size, flattened]"
         z = z.reshape(batch_size, 1, -1)
-        z = z.expand(-1, 64, -1)
+        z = z.expand(-1, self.num_squares, -1)
 
         x = torch.cat((x, z), dim=-1)
-
-        x = x.reshape(batch_size * 64, -1)
-
+        x = x.reshape(batch_size * self.num_squares, -1)
         x = self.dense(x)
-
-        x = x.reshape(batch_size, 64, len(common.PIECE_TYPES))
+        x = x.reshape(batch_size, self.num_squares, self.out_channels)
 
         return x
 
 
-if __name__ == "__main__":
-    model = ChessRec()
+class ChessRec(BoardRec):
+    def __init__(self):
+        super().__init__(game="chess")
 
+
+if __name__ == "__main__":
+    model = BoardRec(game="chess")
     print(torch.cuda.is_available())

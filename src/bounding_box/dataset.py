@@ -51,7 +51,7 @@ augment_transforms = torch.nn.Sequential(
 # And I would need to add the affine transforms to the target mask as well.
 
 
-class ChessBoardBBoxDataset(Dataset):
+class BoardBBoxDataset(Dataset):
 
     def __init__(
         self, root_dir, augment_ratio=0.5, max=None, device=torch.device("cpu")
@@ -119,7 +119,7 @@ class ChessBoardBBoxDataset(Dataset):
 
 def test_data_set():
 
-    c = ChessBoardBBoxDataset(
+    c = BoardBBoxDataset(
         root_dir="resources/chessboards_bbox_images/chessboards_bbox",
         augment_ratio=0.5,
         max=1000,
@@ -139,3 +139,7 @@ def test_data_set():
         ax1.imshow((img.permute(1, 2, 0) - img.min()) / (img.max() - img.min()))
         ax2.imshow(target_mask.squeeze(0))
         plt.show()
+
+
+# Backward compatibility alias
+ChessBoardBBoxDataset = BoardBBoxDataset

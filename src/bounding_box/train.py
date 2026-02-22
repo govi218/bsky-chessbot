@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import os
 
 from src.bounding_box import dataset
-from src.bounding_box.model import ChessBoardBBox
+from src.bounding_box.model import BoardBBox
 from src.bounding_box.inference import get_bbox
 
 import datetime
@@ -55,11 +55,11 @@ def train(
     else:
         print("Using CPU")
 
-    chess_board_set = dataset.ChessBoardBBoxDataset(
+    board_set = dataset.BoardBBoxDataset(
         root_dir=data_root_dir, augment_ratio=augment_ratio, max=max_data, device=device
     )
     train_set, test_set = torch.utils.data.random_split(
-        chess_board_set, [train_test_split, 1.0 - train_test_split]
+        board_set, [train_test_split, 1.0 - train_test_split]
     )
 
     train_loader = torch.utils.data.DataLoader(
@@ -69,7 +69,7 @@ def train(
         test_set, batch_size=batch_size, shuffle=False, drop_last=True
     )
 
-    model = ChessBoardBBox()
+    model = BoardBBox()
     model.to(device)
 
     criterion = nn.MSELoss()

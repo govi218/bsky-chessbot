@@ -11,17 +11,19 @@ It works in multiple steps:
 
 All these steps (except the fifth) basically use some common pretrained convolutional models available via torchvision with slightly modified heads. Detection is made robust using demanding generated training data and augmentations.
 
-## Multi-game groundwork
+## Multi-game pipeline
 
-The project now includes a game registry and generic board utilities for rectangular grids and single-piece-per-square games.
+The training/data pipeline is now game-aware for rectangular grids and single-piece-per-square games.
 
 - `src/games.py` defines game specs (`chess`, `xiangqi`), including board dimensions and piece alphabets.
-- `src/common.py` now contains game-agnostic helpers for:
+- `src/common.py` contains game-agnostic helpers for:
   - parsing/normalizing piece-placement notation on rectangular boards,
   - converting board grids to/from tensors,
   - 180° rotation and color-flip transforms by game spec.
+- `src/fen_recognition/*` is now generic (`BoardRec`, `BoardPositionDataset`) and accepts `game`/`tile_size`.
+- `src/board_orientation/*` now replays PGN via `pyffish` and accepts `game`.
 
-Current image inference models are still chess-only. `get_fen(..., game=\"chess\")` keeps backward compatibility and explicitly rejects non-chess inference for now.
+Current end-user image inference (`get_fen`) remains chess-only for model-weight compatibility, but training/eval entrypoints accept `--game`.
 
 Xiangqi notation normalization example:
 
@@ -88,6 +90,7 @@ uv run python chess_diagram_to_fen.py --dir resources/test_images/real_use_cases
 Needs about **40 GB** disk space.
 ```shell
 uv run python main.py generate fen
+uv run python main.py generate position --game chess
 
 # It is important to generate the fen data before
 # the bbox and existence data, since the bbox data generation
@@ -108,6 +111,7 @@ Additionally you can download [this Kaggle dataset](https://www.kaggle.com/datas
 ```shell
 uv run python main.py dataset bbox
 uv run python main.py dataset fen
+uv run python main.py dataset position --game chess
 uv run python main.py dataset orientation
 uv run python main.py dataset image_rotation
 uv run python main.py dataset existence
@@ -118,6 +122,7 @@ uv run python main.py dataset existence
 ```shell
 uv run python main.py train bbox
 uv run python main.py train fen
+uv run python main.py train position --game chess
 uv run python main.py train orientation
 uv run python main.py train image_rotation
 uv run python main.py train existence
@@ -127,6 +132,7 @@ uv run python main.py train existence
 
 ```shell
 uv run python main.py eval fen
+uv run python main.py eval position --game chess
 uv run python main.py eval orientation
 uv run python main.py eval image_rotation
 ```

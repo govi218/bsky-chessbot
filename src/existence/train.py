@@ -5,7 +5,7 @@ import torch.optim as optim
 import matplotlib.pyplot as plt
 
 from src.existence import dataset
-from src.existence.model import ChessExistence
+from src.existence.model import BoardExistence
 import os
 import datetime
 
@@ -77,7 +77,7 @@ def train(
         test_set, batch_size=batch_size, shuffle=False, drop_last=True
     )
 
-    model = ChessExistence()
+    model = BoardExistence()
     model.to(device)
 
     criterion = nn.MSELoss()

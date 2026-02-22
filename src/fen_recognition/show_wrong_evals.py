@@ -1,40 +1,45 @@
-import torch
 import matplotlib.pyplot as plt
+import torch
 
-from src import consts, common
+from src import common, consts
 from src.fen_recognition import dataset
-from src.fen_recognition.model import ChessRec
+from src.fen_recognition.model import BoardRec
+from src.games import get_game
 
 
-def show_wrong_fens(model_path="models/best_model_fen_0.943_2024-04-19-09-31-24.pth"):#"models/best_model_fen_0.953_2024-02-03-13-49-31.pth"):
+def show_wrong_fens(
+    model_path="models/best_model_position_chess_0.943_2024-04-19-09-31-24.pth",
+    data_root_dir="resources/fen_images",
+    game: str = "chess",
+    tile_size: int = consts.DEFAULT_TILE_SIZE,
+):
+    spec = get_game(game)
 
-    max_data = None
-    data_root_dir = "resources/fen_images"#test_images/kaggle-chess-positions-test"
-
-    chess_board_set = dataset.ChessBoardDataset(
+    board_set = dataset.BoardPositionDataset(
         root_dir=data_root_dir,
-        augment_ratio=0.0,#0.5,
-        affine_augment_ratio=0.0,#0.8,
-        max=max_data
+        game=spec,
+        tile_size=tile_size,
+        augment_ratio=0.0,
+        affine_augment_ratio=0.0,
+        max=None,
     )
 
-    model = ChessRec()
+    model = BoardRec(game=spec.key, tile_size=tile_size)
     model.load_state_dict(torch.load(model_path, map_location=torch.device("cpu")))
     model.eval()
 
     correct = 0
     total = 0
-    for img, target in chess_board_set:
-
+    for img, target in board_set:
         total += 1
 
         with torch.no_grad():
             output = model(img.unsqueeze(0)).squeeze(0)
 
-        board = common.tensor_to_chess_board(output)
-        true_board = common.tensor_to_chess_board(target)
+        board = common.tensor_to_position(output, spec)
+        true_board = common.tensor_to_position(target, spec)
 
-        if board.fen() == true_board.fen():
+        if board.piece_placement == true_board.piece_placement:
             correct += 1
             print("Correct:", board.fen())
             continue
@@ -44,11 +49,9 @@ def show_wrong_fens(model_path="models/best_model_fen_0.943_2024-04-19-09-31-24.
         print(board.fen())
         print(correct / total)
 
-        pil_img = common.get_image(board, width=consts.BOARD_PIXEL_WIDTH, height=consts.BOARD_PIXEL_WIDTH)
+        pil_img = common.get_image(board, width=img.shape[2], height=img.shape[1])
 
         f, ax = plt.subplots(1, 2, figsize=(16, 8))
-
-        # # Display the image using matplotlib
         ax[0].imshow(pil_img)
         ax[0].axis("off")
 
