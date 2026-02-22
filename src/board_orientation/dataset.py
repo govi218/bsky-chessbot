@@ -1,9 +1,9 @@
-import chess
-import chess.pgn
-import torch
 import random
+import torch
 from torch.utils.data import Dataset
+
 from src import common
+from src.pgn_parser import iter_pgn_games, parse_pgn_game, parse_variant_tag, replay_moves_to_fens
 
 
 class ChessBoardOrientationDataset(Dataset):
@@ -12,18 +12,31 @@ class ChessBoardOrientationDataset(Dataset):
         self.board_list = []
         self.rotate_probability = rotate_probability
 
-        with open(pgn_file_name) as pgn:
-            while True:
-                game = chess.pgn.read_game(pgn)
-                if game is None:
-                    break
-                board = game.board()
-                for move in game.mainline_moves():
-                    board.push(move)
-                    self.board_list.append(board.copy())
+        for game_text in iter_pgn_games(pgn_file_name):
+            parsed = parse_pgn_game(game_text)
+            variant, chess960 = parse_variant_tag(parsed.tags.get("Variant", "chess"))
+            if variant != "chess":
+                continue
 
+            initial_fen = parsed.tags.get("FEN")
+            try:
+                fens = replay_moves_to_fens(
+                    parsed.moves,
+                    variant=variant,
+                    initial_fen=initial_fen,
+                    chess960=chess960,
+                )
+            except Exception:
+                continue
+
+            for fen in fens:
+                position = common.position_from_notation(fen, game="chess")
+                if position is not None:
+                    self.board_list.append(position)
                 if len(self.board_list) >= max:
                     break
+            if len(self.board_list) >= max:
+                break
 
         random.shuffle(self.board_list)
 

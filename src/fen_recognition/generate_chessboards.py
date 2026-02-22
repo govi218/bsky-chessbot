@@ -1,5 +1,4 @@
 # Import the modules
-import chess
 import numpy as np
 import random
 import os
@@ -11,10 +10,8 @@ from PIL import ImageOps
 from pathlib import Path
 from tqdm import tqdm
 
-from src import consts
-
-import chess
-import random
+from src import consts, common
+from src.games import CHESS
 
 RANDOM_OFFSET = max(1, consts.SQUARE_SIZE // 40)
 
@@ -244,11 +241,11 @@ BOARD_THEMES = [
 ]
 
 
-# Define a function that takes an FEN string as input and returns a chessboard object
+# Define a function that takes an FEN string as input and returns a position object
 def fen_to_board(fen):
-    # Create a new chessboard object from the FEN string
-    board = chess.Board(fen)
-    # Return the board object
+    board = common.position_from_notation(fen, game=CHESS)
+    if board is None:
+        raise ValueError(f"Could not parse FEN: {fen}")
     return board
 
 
@@ -271,89 +268,54 @@ def svg_to_image(svg_file):
     return pil_img
 
 
-# Define a function that takes a chessboard object and a dictionary of piece images as input and returns a PIL image object of the chessboard image with the pieces
+# Define a function that takes a position object and a dictionary of piece images as input and returns a PIL image object
 def board_to_image(board, board_image, piece_images):
-    # Load the chessboard image as a PIL image object
-    board_image = board_image.copy()  # Image.open("./lichess_images/board/blue2.jpg")
-    # Get the size of the chessboard image
+    board_image = board_image.copy()
     width, height = board_image.size
-    # Get the size of each square on the chessboard image
     assert consts.SQUARE_SIZE == height // 8
-    # Loop through each square on the chessboard object
-    for square in chess.SQUARES:
-        # Get the piece on the square
-        piece = board.piece_at(square)
-        # If there is a piece on the square
+    grid = common.parse_piece_placement(board.piece_placement, CHESS)
+    for square in range(0, 64):
+        piece = grid[square]
         if piece:
-            # Get the color and the symbol of the piece
-            color = piece.color
-            symbol = piece.symbol()
-            # Get the file name of the piece image
-            piece_key = (color and "w" or "b") + symbol.lower()
-            # Get the PIL image object of the piece image
+            piece_key = ("w" if piece.isupper() else "b") + piece.lower()
             piece_image = piece_images[piece_key]
             if random.randint(0, 1) == 1:
                 piece_image = ImageOps.mirror(piece_image)
 
-            # Get the coordinates of the square on the chessboard image
             row = 7 - square // 8
             col = square % 8
 
             x = col * consts.SQUARE_SIZE + random.randint(-RANDOM_OFFSET, RANDOM_OFFSET)
             y = row * consts.SQUARE_SIZE + random.randint(-RANDOM_OFFSET, RANDOM_OFFSET)
-            # Resize the piece image to fit the square size
             assert (consts.SQUARE_SIZE, consts.SQUARE_SIZE) == piece_image.size
-            # Overlay the piece image on the chessboard image with transparency
             board_image.paste(piece_image, (x, y), piece_image)
-    # Return the chessboard image with the pieces
     return board_image
 
 
 def flip_piece_colors(board):
-    new_board = chess.Board(None)
-
-    for square in chess.SQUARES:
-        p = board.piece_at(square)
-        if p is not None:
-            new_board.set_piece_at(
-                square,
-                chess.Piece(
-                    p.piece_type, chess.BLACK if p.color == chess.WHITE else chess.WHITE
-                ),
-            )
-
-    return new_board
+    grid = common.parse_piece_placement(board.piece_placement, CHESS)
+    flipped_grid = []
+    for piece in grid:
+        if piece is None:
+            flipped_grid.append(None)
+        else:
+            flipped_grid.append(piece.lower() if piece.isupper() else piece.upper())
+    return common.Position(game=CHESS.key, piece_placement=common.grid_to_piece_placement(flipped_grid, CHESS))
 
 
-# Define a function that returns a random chess position
 def random_board():
-    # Create an empty chessboard object
-    board = chess.Board(None)
-    # Loop through each square on the board
+    grid = [None] * CHESS.num_squares
     approx_num_empty_squares = random.randint(1, 64)
-    for square in chess.SQUARES:
-        # Sometimes we leave the square empty
+    piece_symbols = list(CHESS.piece_symbols)
+    for square in range(CHESS.num_squares):
         if random.randint(1, 64) < approx_num_empty_squares:
             continue
-        # Otherwise, create a piece object with the corresponding color and type
-        else:
-            # Generate a random number between 1 and 11
-            n = random.randint(1, 12)
-            # The color is white if the number is odd, black if the number is even
-            color = n % 2 == 1
-            # The type is determined by the number as follows:
-            # 1 or 2: pawn
-            # 3 or 4: knight
-            # 5 or 6: bishop
-            # 7 or 8: rook
-            # 9 or 10: queen
-            # 11: king
-            piece_type = (n + 1) // 2
-            piece = chess.Piece(piece_type, color)
-            # Set the piece on the square
-            board.set_piece_at(square, piece)
+        grid[square] = random.choice(piece_symbols)
 
-    return board
+    return common.Position(
+        game=CHESS.key,
+        piece_placement=common.grid_to_piece_placement(grid, CHESS),
+    )
 
 
 def generate_fen_training_data(

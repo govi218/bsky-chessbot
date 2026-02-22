@@ -245,12 +245,6 @@ wheels = [
 ]
 
 [[package]]
-name = "chess"
-version = "1.11.2"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/93/09/7d04d7581ae3bb8b598017941781bceb7959dd1b13e3ebf7b6a2cd843bc9/chess-1.11.2.tar.gz", hash = "sha256:a8b43e5678fdb3000695bdaa573117ad683761e5ca38e591c4826eba6d25bb39", size = 6131385, upload-time = "2025-02-25T19:10:27.328Z" }
-
-[[package]]
 name = "chess-diagram-to-fen"
 version = "0.0.1"
 source = { editable = "." }
@@ -261,7 +255,7 @@ dependencies = [
     { name = "numpy", version = "2.4.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11' or (extra == 'extra-20-chess-diagram-to-fen-cpu' and extra == 'extra-20-chess-diagram-to-fen-cuda') or (extra == 'extra-20-chess-diagram-to-fen-cpu' and extra == 'extra-20-chess-diagram-to-fen-rocm') or (extra == 'extra-20-chess-diagram-to-fen-cuda' and extra == 'extra-20-chess-diagram-to-fen-rocm')" },
     { name = "pillow" },
     { name = "pyfastnoisesimd" },
-    { name = "python-chess" },
+    { name = "pyffish" },
     { name = "scikit-image", version = "0.25.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11' or (extra == 'extra-20-chess-diagram-to-fen-cpu' and extra == 'extra-20-chess-diagram-to-fen-cuda') or (extra == 'extra-20-chess-diagram-to-fen-cpu' and extra == 'extra-20-chess-diagram-to-fen-rocm') or (extra == 'extra-20-chess-diagram-to-fen-cuda' and extra == 'extra-20-chess-diagram-to-fen-rocm')" },
     { name = "scikit-image", version = "0.26.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11' or (extra == 'extra-20-chess-diagram-to-fen-cpu' and extra == 'extra-20-chess-diagram-to-fen-cuda') or (extra == 'extra-20-chess-diagram-to-fen-cpu' and extra == 'extra-20-chess-diagram-to-fen-rocm') or (extra == 'extra-20-chess-diagram-to-fen-cuda' and extra == 'extra-20-chess-diagram-to-fen-rocm')" },
     { name = "tqdm" },
@@ -295,7 +289,7 @@ requires-dist = [
     { name = "numpy" },
     { name = "pillow" },
     { name = "pyfastnoisesimd" },
-    { name = "python-chess" },
+    { name = "pyffish" },
     { name = "pytorch-triton-rocm", marker = "extra == 'rocm'", index = "https://download.pytorch.org/whl/rocm6.4", conflict = { package = "chess-diagram-to-fen", extra = "rocm" } },
     { name = "scikit-image" },
     { name = "torch", marker = "extra == 'cpu'", index = "https://download.pytorch.org/whl/cpu", conflict = { package = "chess-diagram-to-fen", extra = "cpu" } },
@@ -1452,6 +1446,30 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/66/a9/7f3e010c62593b02fcc8473df8b0487e134c4ecd4b135bc2a6ab6e003a2f/pyfastnoisesimd-0.4.2.tar.gz", hash = "sha256:4ba2827a99e9db4c382f1541e603a7526b736c62755ecf7cd8f490afa5c1016d", size = 52421, upload-time = "2021-03-31T03:37:01.364Z" }
 
 [[package]]
+name = "pyffish"
+version = "0.0.88"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/c2/65/35e51084e8a2e03e8f0dee710d2ca95be957ed6a959279c6a59f03f4b3bd/pyffish-0.0.88.tar.gz", hash = "sha256:2e9a95b2cbafa21c583032c23cb728570e3c61783a74ecd0fe4cf1653e1e8fbe", size = 321947, upload-time = "2025-05-23T15:40:14.204Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/5a/50/13f7e5ea6a5a7d0bd7d0eea2f823f9521d465ab4ae759526f41061efad34/pyffish-0.0.88-cp310-cp310-macosx_10_14_x86_64.whl", hash = "sha256:a220e8608bbee6a392bde85af2a5d210cc886ed5d1d212dea8ed3c53b4a55e36", size = 545290, upload-time = "2025-05-23T15:38:48.946Z" },
+    { url = "https://files.pythonhosted.org/packages/49/cd/0d5dd685124c26bd8a032dbb366e125caba517a5257d6a3c7ef35ab3c22b/pyffish-0.0.88-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:76fe3895123544bdcc1233cc31414f3eb9486f1f2d2ac1fdb8f4f971c6f45cf5", size = 530832, upload-time = "2025-05-23T15:39:28.07Z" },
+    { url = "https://files.pythonhosted.org/packages/59/ea/c40cd2036319ef7a8f8ee72bb54923877aec7b01fa867153340d47acc84f/pyffish-0.0.88-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:5fa928a96a00e21cfb6feedf14be8382ee1fc9a3e10b5464881c40073fb07a57", size = 5932123, upload-time = "2025-05-23T15:39:30.172Z" },
+    { url = "https://files.pythonhosted.org/packages/78/d7/e6009323e79aa1a3eca634d245777f4aac7ac40c8185913b10c43f259c08/pyffish-0.0.88-cp310-cp310-win_amd64.whl", hash = "sha256:339d04166a07ba836823a533dd60a7792633dfc37281a61d6033c03918da3b98", size = 372372, upload-time = "2025-05-23T15:39:32.083Z" },
+    { url = "https://files.pythonhosted.org/packages/f3/bc/c0dd97c79b042783c3fc6f9c1410436a220d400814fe52997e931de1ee9c/pyffish-0.0.88-cp311-cp311-macosx_10_14_x86_64.whl", hash = "sha256:efd7b99deb770bc141230d54006bf58099ae651ce0b25b3da6d96d04e46eb2f2", size = 545284, upload-time = "2025-05-23T15:39:34.665Z" },
+    { url = "https://files.pythonhosted.org/packages/da/df/68c0e18e32eae267e280911ab666f04bd566409065295c394a18a7e7efcd/pyffish-0.0.88-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:ec97d1787dca475fc6e04e7e0676b912dde4bdade3b8362bd075c59652b67382", size = 530832, upload-time = "2025-05-23T15:39:36.777Z" },
+    { url = "https://files.pythonhosted.org/packages/d8/b6/b2c026da7aa00b53ab98bd8b8e5d18ea2eed1c96065929c8fbf2db9cba8d/pyffish-0.0.88-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:ed8d378dee1ca9a33854a45fbab4389fe769d82dd10294fb9a53cd285f8bdb56", size = 5932817, upload-time = "2025-05-23T15:39:38.812Z" },
+    { url = "https://files.pythonhosted.org/packages/9d/12/8cdc72e830f8516fbbd96ed4fc8a01b5232014e85308063710324e030062/pyffish-0.0.88-cp311-cp311-win_amd64.whl", hash = "sha256:a83351263558d7d60bf398845712053323e41201956378ebc3b2203d50808012", size = 372350, upload-time = "2025-05-23T15:39:40.619Z" },
+    { url = "https://files.pythonhosted.org/packages/5c/18/586badd4fa931752eedf8546caf0cd237a3818f5536e88782e201b1aa7fc/pyffish-0.0.88-cp312-cp312-macosx_10_14_x86_64.whl", hash = "sha256:01f534adee42924abb4b2b3fad5aaa5df4f075e0a7cbe2138515162fd1769779", size = 545271, upload-time = "2025-05-23T15:39:42.531Z" },
+    { url = "https://files.pythonhosted.org/packages/18/b5/bde2d3df077acdb1fbb2c4d2dbeb2906a6b6d4eacfa3670edca0cb73b85e/pyffish-0.0.88-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:81ead03535146f25d5c46ad70cc660c83072a39a77b03e4b9269bba1de4006b4", size = 530892, upload-time = "2025-05-23T15:39:44.446Z" },
+    { url = "https://files.pythonhosted.org/packages/82/e6/3def4b2ee334a9d34ca513c16549f82c1e96d3168e8e83d854365f574e36/pyffish-0.0.88-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:bb731158474577df39372b4fa8947e9b0819c6b1e0777ebad4a47130cab8c4b8", size = 5933064, upload-time = "2025-05-23T15:39:46.509Z" },
+    { url = "https://files.pythonhosted.org/packages/3d/72/c8fab9fbebf7bb4846ef79e1ecf61d6792a9242e47b38d59f8ffd18c4598/pyffish-0.0.88-cp312-cp312-win_amd64.whl", hash = "sha256:df88482e292de4c7e08479bbe4b080cb2fe6f37a4e093ea055e7a9a5d379f1d5", size = 372337, upload-time = "2025-05-23T15:39:48.31Z" },
+    { url = "https://files.pythonhosted.org/packages/f9/fe/1552074ac77ae3aeceec522a4467792134e31dbb161fac38a9be5578c6c7/pyffish-0.0.88-cp313-cp313-macosx_10_14_x86_64.whl", hash = "sha256:7d9ff1bc2c8218c612d0f994040db315c516d8228d255a0eae4008420f1eb2e7", size = 545273, upload-time = "2025-05-23T15:39:50.197Z" },
+    { url = "https://files.pythonhosted.org/packages/9e/54/683318966b514738b3e79f7c6e8703b78e8e505642befda37ac7b6480cb8/pyffish-0.0.88-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:5889c15f6146d04b0623727c5cb14744199b85966a7a6c937e391bee3d60768c", size = 530888, upload-time = "2025-05-23T15:39:51.694Z" },
+    { url = "https://files.pythonhosted.org/packages/4b/c9/60654861fa6d519c581d8da865fa5c470bc56d22cab13e009f29d0716afb/pyffish-0.0.88-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:7c13ba866d5028ce750847aac97d18c9167f3f93e889741636a01f2871dce7dc", size = 5932809, upload-time = "2025-05-23T15:39:54.263Z" },
+    { url = "https://files.pythonhosted.org/packages/6c/09/25c5a70a646a201c967702b96c9ce301021a6ab455598fc05331400bc286/pyffish-0.0.88-cp313-cp313-win_amd64.whl", hash = "sha256:b3bbbdd60eb978b110f20f35783a2d58abc4869bdeaf1222d401c523d346dc1d", size = 372338, upload-time = "2025-05-23T15:39:56.194Z" },
+]
+
+[[package]]
 name = "pyparsing"
 version = "3.3.2"
 source = { registry = "https://pypi.org/simple" }
@@ -1467,18 +1485,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/bd/11/293dd436aea955d45fc4e8a35b6ae7270f5b8e00b53cf6c024c83b657a11/PySocks-1.7.1.tar.gz", hash = "sha256:3f8804571ebe159c380ac6de37643bb4685970655d3bba243530d6558b799aa0", size = 284429, upload-time = "2019-09-20T02:07:35.714Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/8d/59/b4572118e098ac8e46e399a1dd0f2d85403ce8bbaad9ec79373ed6badaf9/PySocks-1.7.1-py3-none-any.whl", hash = "sha256:2725bd0a9925919b9b51739eea5f9e2bae91e83288108a9ad338b2e3a4435ee5", size = 16725, upload-time = "2019-09-20T02:06:22.938Z" },
-]
-
-[[package]]
-name = "python-chess"
-version = "1.999"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "chess" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/5f/60/7c7d132b6683ff215bf705fc55ffc0240a6cddea89657407ca0a4fb628d0/python-chess-1.999.tar.gz", hash = "sha256:8cad0388c42242d890ac6368ad64def15cd0165db033df0ad479492e266e5e6c", size = 1453, upload-time = "2020-10-26T11:30:10.118Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/38/47/dfebc06e589530691d33c71bc7b3d8d311252b58ae338980fd4327fe77f2/python_chess-1.999-py3-none-any.whl", hash = "sha256:93b562f8f1124cb7bf56fb095e18743758e69dc6a028ccda0badcaa5c59d88c8", size = 1401, upload-time = "2020-10-26T11:30:07.758Z" },
 ]
 
 [[package]]

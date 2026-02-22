@@ -22,7 +22,7 @@ dependencies = [
   "matplotlib",
   "scikit-image",
   "tqdm",
-  "python-chess",
+  "pyffish",
   "cairosvg",
   "pyfastnoisesimd"
 ]

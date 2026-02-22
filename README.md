@@ -11,6 +11,30 @@ It works in multiple steps:
 
 All these steps (except the fifth) basically use some common pretrained convolutional models available via torchvision with slightly modified heads. Detection is made robust using demanding generated training data and augmentations.
 
+## Multi-game groundwork
+
+The project now includes a game registry and generic board utilities for rectangular grids and single-piece-per-square games.
+
+- `src/games.py` defines game specs (`chess`, `xiangqi`), including board dimensions and piece alphabets.
+- `src/common.py` now contains game-agnostic helpers for:
+  - parsing/normalizing piece-placement notation on rectangular boards,
+  - converting board grids to/from tensors,
+  - 180° rotation and color-flip transforms by game spec.
+
+Current image inference models are still chess-only. `get_fen(..., game=\"chess\")` keeps backward compatibility and explicitly rejects non-chess inference for now.
+
+Xiangqi notation normalization example:
+
+```python
+from src import common
+
+notation = common.normalize_position_notation(
+    "rheakaehr_9_1c5c1_p1p1p1p1p_9_9_P1P1P1P1P_1C5C1_9_RHEAKAEHR",
+    game="xiangqi",
+)
+print(notation)  # rheakaehr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RHEAKAEHR w
+```
+
 ## Install
 
 Install [uv](https://docs.astral.sh/uv/getting-started/installation/) and then clone the project:

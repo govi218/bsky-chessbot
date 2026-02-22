@@ -1,9 +1,5 @@
 import torch
 import matplotlib.pyplot as plt
-from io import BytesIO
-from cairosvg import svg2png
-from PIL import Image
-import chess.svg
 
 from src import consts, common
 from src.fen_recognition import dataset
@@ -48,16 +44,7 @@ def show_wrong_fens(model_path="models/best_model_fen_0.943_2024-04-19-09-31-24.
         print(board.fen())
         print(correct / total)
 
-        svg_data = chess.svg.board(board, size=consts.BOARD_PIXEL_WIDTH)
-
-        png_data = svg2png(
-            bytestring=svg_data,
-            output_width=consts.BOARD_PIXEL_WIDTH,
-            output_height=consts.BOARD_PIXEL_WIDTH,
-        )
-
-        # Open the PNG data as a PIL image and convert it to RGB mode
-        pil_img = Image.open(BytesIO(png_data)).convert("RGBA")
+        pil_img = common.get_image(board, width=consts.BOARD_PIXEL_WIDTH, height=consts.BOARD_PIXEL_WIDTH)
 
         f, ax = plt.subplots(1, 2, figsize=(16, 8))
 

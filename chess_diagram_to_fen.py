@@ -1,7 +1,6 @@
 import torch
 from torchvision.transforms import functional
 import matplotlib.pyplot as plt
-import chess
 import argparse
 import random
 import os
@@ -18,6 +17,7 @@ import src.board_image_rotation.dataset as rotation_dataset
 
 from src.bounding_box.inference import get_bbox
 from src import consts, common
+from src.games import CHESS, GAMES, get_game
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -163,7 +163,7 @@ def board_image_rotation(img: Image.Image) -> int:
 
 
 @torch.no_grad()
-def is_board_flipped(board: chess.Board, no_rotate_bias=0.2) -> bool:
+def is_board_flipped(board: common.Position, no_rotate_bias=0.2) -> bool:
     board_tensor = common.chess_board_to_tensor(board)
     output = (
         orientation_model.get()(board_tensor.unsqueeze(0).to(device)).squeeze(0).cpu()
@@ -173,14 +173,14 @@ def is_board_flipped(board: chess.Board, no_rotate_bias=0.2) -> bool:
 
 
 @torch.no_grad()
-def rotate_board(board: chess.Board) -> chess.Board:
+def rotate_board(board: common.Position) -> common.Position:
     board_tensor = common.chess_board_to_tensor(board)
     board_tensor = common.rotate_board_tensor(board_tensor)
     return common.tensor_to_chess_board(board_tensor)
 
 
 @torch.no_grad()
-def get_board_from_cropped_img(img: Image.Image, num_tries=20) -> chess.Board:
+def get_board_from_cropped_img(img: Image.Image, num_tries=20) -> common.Position:
     MIN_SIZE = 32
     if img.width < MIN_SIZE or img.height < MIN_SIZE:
         return None
@@ -227,9 +227,15 @@ def get_board_from_cropped_img(img: Image.Image, num_tries=20) -> chess.Board:
 @dataclass
 class FenResult:
     fen: str = None
-    cropped_image: Image = None
+    notation: str = None
+    game: str = CHESS.key
+    cropped_image: Image.Image = None
     image_rotation_angle: int = None
     board_is_flipped: bool = None
+
+
+def get_supported_games() -> list[str]:
+    return list(GAMES.keys())
 
 
 def get_fen(
@@ -238,6 +244,7 @@ def get_fen(
     auto_rotate_image=True,
     mirror_when_180_rotation=False,
     auto_rotate_board=True,
+    game: str = CHESS.key,
 ):
     """Takes an image and returns an FEN (Forsyth-Edwards Notation) string.
 
@@ -252,9 +259,15 @@ def get_fen(
         perspective and rotate the board accordingly.
 
     Returns:
-        - `FenResult | None`: Returns a dataclass that contains the fields `fen`, `cropped_image`, `image_rotation_angle`, and `board_is_flipped`.
+        - `FenResult | None`: Returns a dataclass that contains the fields `fen`, `notation`, `game`, `cropped_image`, `image_rotation_angle`, and `board_is_flipped`.
         Returns `None` if there is no chessboard detectable.
     """
+    game = get_game(game)
+    if game.key != CHESS.key:
+        raise NotImplementedError(
+            f"Game '{game.key}' is registered but image inference currently supports only '{CHESS.key}'. "
+            "The generic board/notation utilities for rectangular games are available in src/common.py."
+        )
 
     img = img.convert("RGB")
 
@@ -288,6 +301,8 @@ def get_fen(
                 board = rotate_board(board)
 
             result.fen = board.fen()
+            result.notation = result.fen
+            result.game = game.key
 
     return result
 
@@ -344,9 +359,7 @@ def demo(root_dir: str, shuffle_files: bool):
             if fen_result.cropped_image is not None:
                 ax2.imshow(fen_result.cropped_image)
             if fen_result.fen is not None:
-                fen_img = common.get_image(
-                    chess.Board(fen_result.fen), width=512, height=512
-                )
+                fen_img = common.get_image(fen_result.fen, width=512, height=512)
                 ax3.imshow(fen_img)
 
         ax1.axis("off")

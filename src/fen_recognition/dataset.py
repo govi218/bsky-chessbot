@@ -1,4 +1,3 @@
-import chess
 import torch
 import random
 import matplotlib.pyplot as plt
@@ -88,7 +87,8 @@ class ChessBoardDataset(Dataset):
 
         assert fen is not None
 
-        board = chess.Board(fen)
+        board = common.position_from_notation(fen, game="chess")
+        assert board is not None
         try:
             img = Image.open(file_path)
         except RuntimeError:
