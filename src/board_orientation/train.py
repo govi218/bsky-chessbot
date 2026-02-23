@@ -39,8 +39,9 @@ TEST_ACC_FREQ = 2000
 
 
 def train(
-    train_pgn_file="resources/lichess_games/lichess_db_standard_rated_2013-04.pgn",
-    test_pgn_file="resources/lichess_games/lichess_db_standard_rated_2013-05.pgn",
+    train_pgn_file,
+    test_pgn_file,
+    game: str,
     outdir="models",
     total_steps=10000,
     batch_size=8,
@@ -48,7 +49,6 @@ def train(
     train_test_split=0.7,
     max_data=200000,
     rotate_probability=0.3,  # we don't rotate half of the time, since in reality, the majority of chess diagrams will be depicted from the white side
-    game: str = "chess",
 ):
     start_time_string = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
     print(start_time_string)
@@ -115,14 +115,9 @@ def train(
 
             if (i + 1) % LOSS_REPORT_FREQ == 0:
                 print(
-                    "[%d/%d, %5d] loss: %.4f, lr: %.5f"
-                    % (
-                        num_steps,
-                        total_steps,
-                        i + 1,
-                        running_loss / LOSS_REPORT_FREQ,
-                        optimizer.param_groups[0]["lr"],
-                    )
+                    f"[{num_steps}/{total_steps}, {i + 1:5d}] "
+                    f"loss: {running_loss / LOSS_REPORT_FREQ:.4f}, "
+                    f"lr: {optimizer.param_groups[0]['lr']:.5f}"
                 )
                 running_loss = 0.0
 
@@ -133,23 +128,21 @@ def train(
                 test_loss_list.append(test_loss)
                 test_acc_list.append(test_acc)
                 print(
-                    "Num steps: %d, Test Loss: %.4f, Test Acc: %.3f"
-                    % (num_steps, test_loss_list[-1], test_acc_list[-1])
+                    f"Num steps: {num_steps}, "
+                    f"Test Loss: {test_loss_list[-1]:.4f}, "
+                    f"Test Acc: {test_acc_list[-1]:.3f}"
                 )
 
                 if test_acc > best_acc:
                     best_acc = test_acc
                     best_model = model.state_dict()
-                    print("Best model updated: Test Acc: %.3f" % best_acc)
+                    print(f"Best model updated: Test Acc: {best_acc:.3f}")
 
             if num_steps >= total_steps:
                 break
 
     os.makedirs(outdir, exist_ok=True)
-    file_name = outdir + "/best_model_orientation_%.3f_%s.pth" % (
-        best_acc,
-        start_time_string,
-    )
+    file_name = f"{outdir}/best_model_orientation_{game}_{best_acc:.3f}_{start_time_string}.pth"
     print("Saving to", file_name)
     torch.save(best_model, file_name)
 

@@ -5,13 +5,13 @@ from src.existence import dataset
 from src.existence.model import BoardExistence
 
 
-def show_wrong_existence(model_path="models/best_model_existence_0.998_2024-04-16-23-44-48.pth"):
+def show_wrong_existence(model_path, game: str):
 
     max_data = None
 
     board_image_set = dataset.ExistenceDataset(
-        with_board_root_dir="resources/chessboards_bbox_images/chessboards_bbox",
-        no_board_root_dir="resources/chessboards_bbox_images/no_chessboards",
+        with_board_root_dir=f"resources/board_bbox_images/{game}/boards_bbox",
+        no_board_root_dir=f"resources/board_bbox_images/{game}/no_boards",
         augment_ratio=0.8,
         affine_augment_ratio=0.8,
         max=max_data,

@@ -117,10 +117,10 @@ class BoardBBoxDataset(Dataset):
         return (input_img, box, box_to_mask(box))
 
 
-def test_data_set():
+def test_data_set(game: str):
 
     c = BoardBBoxDataset(
-        root_dir="resources/chessboards_bbox_images/chessboards_bbox",
+        root_dir=f"resources/board_bbox_images/{game}/boards_bbox",
         augment_ratio=0.5,
         max=1000,
     )
@@ -139,7 +139,3 @@ def test_data_set():
         ax1.imshow((img.permute(1, 2, 0) - img.min()) / (img.max() - img.min()))
         ax2.imshow(target_mask.squeeze(0))
         plt.show()
-
-
-# Backward compatibility alias
-ChessBoardBBoxDataset = BoardBBoxDataset

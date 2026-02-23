@@ -26,7 +26,7 @@ augment_transforms = torch.nn.Sequential(
 affine_transforms = v2.RandomAffine(degrees=1.5, translate=(0.01, 0.01), scale=(0.99, 1.01), shear=1.5)
 
 
-def get_default_transforms(game: str = "chess", tile_size: int = consts.DEFAULT_TILE_SIZE):
+def get_default_transforms(game: str, tile_size: int = consts.DEFAULT_TILE_SIZE):
     spec = get_game(game)
     board_h, board_w = consts.board_pixel_size(spec, tile_size)
     return torch.nn.Sequential(
@@ -36,15 +36,11 @@ def get_default_transforms(game: str = "chess", tile_size: int = consts.DEFAULT_
     )
 
 
-# Backward compatibility with existing chess inference path.
-default_transforms = get_default_transforms("chess")
-
-
 class BoardPositionDataset(Dataset):
     def __init__(
         self,
         root_dir,
-        game: str = "chess",
+        game: str,
         tile_size: int = consts.DEFAULT_TILE_SIZE,
         augment_ratio=0.5,
         affine_augment_ratio=0.8,
@@ -120,11 +116,9 @@ class BoardPositionDataset(Dataset):
         return (input_img, target)
 
 
-# Backward compatibility aliases
-ChessBoardDataset = BoardPositionDataset
-
-
-def test_data_set(root_dir="resources/fen_images", game: str = "chess", max_data: int = 1000):
+def test_data_set(game: str, root_dir=None, max_data: int = 1000):
+    if root_dir is None:
+        root_dir = f"resources/board_position_images/{get_game(game).key}"
     d = BoardPositionDataset(root_dir=root_dir, game=game, max=max_data)
 
     for i in range(0, len(d)):

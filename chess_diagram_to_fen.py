@@ -21,6 +21,7 @@ from src.games import CHESS, GAMES, get_game
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+chess_default_position_transforms = fen_dataset.get_default_transforms(CHESS.key)
 
 
 class SomeModel:
@@ -55,25 +56,36 @@ class SomeModel:
 
 script_dir = os.path.abspath(os.path.dirname(__file__))
 
+
+def _find_latest_model(*patterns: str) -> str | None:
+    model_dir = Path(script_dir) / "models"
+    candidates: list[Path] = []
+    for pattern in patterns:
+        candidates.extend(model_dir.glob(pattern))
+    if not candidates:
+        return None
+    candidates.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+    return str(candidates[0])
+
 chess_existence = SomeModel(
     BoardExistence,
-    script_dir + "/models/best_model_existence_0.998_2024-04-16-23-44-48.pth",
+    _find_latest_model("best_model_existence_*.pth"),
 )
 bbox_model = SomeModel(
     BoardBBox,
-    script_dir + "/models/best_model_bbox_0.958_2024-01-28-22-49-40.pth",
+    _find_latest_model("best_model_bbox_*.pth"),
 )
 image_rotation_model = SomeModel(
     ImageRotation,
-    script_dir + "/models/best_model_image_rotation_0.996_2024-04-14-22-59-55.pth",
+    _find_latest_model("best_model_image_rotation_*.pth"),
 )
 fen_model = SomeModel(
-    BoardRec,
-    script_dir + "/models/best_model_fen_0.943_2024-04-19-09-31-24.pth",
+    lambda: BoardRec(game=CHESS.key),
+    _find_latest_model("best_model_position_*.pth", "best_model_fen_*.pth"),
 )
 orientation_model = SomeModel(
     OrientationModel,
-    script_dir + "/models/best_model_orientation_0.987_2024-02-04-17-34-05.pth",
+    _find_latest_model("best_model_orientation_*.pth"),
 )
 
 
@@ -164,7 +176,7 @@ def board_image_rotation(img: Image.Image) -> int:
 
 @torch.no_grad()
 def is_board_flipped(board: common.Position, no_rotate_bias=0.2) -> bool:
-    board_tensor = common.chess_board_to_tensor(board)
+    board_tensor = common.position_to_tensor(board)
     output = (
         orientation_model.get()(board_tensor.unsqueeze(0).to(device)).squeeze(0).cpu()
     )
@@ -174,9 +186,9 @@ def is_board_flipped(board: common.Position, no_rotate_bias=0.2) -> bool:
 
 @torch.no_grad()
 def rotate_board(board: common.Position) -> common.Position:
-    board_tensor = common.chess_board_to_tensor(board)
-    board_tensor = common.rotate_board_tensor(board_tensor)
-    return common.tensor_to_chess_board(board_tensor)
+    board_tensor = common.position_to_tensor(board)
+    board_tensor = common.rotate_tensor_180(board_tensor, CHESS)
+    return common.tensor_to_position(board_tensor, CHESS)
 
 
 @torch.no_grad()
@@ -199,7 +211,7 @@ def get_board_from_cropped_img(img: Image.Image, num_tries=20) -> common.Positio
             if color_flipped:
                 input = -input
 
-            input = fen_dataset.default_transforms(input)
+            input = chess_default_position_transforms(input)
 
             if input.isnan().any():
                 print("WARNING: Found nan after transforms.")
@@ -210,7 +222,7 @@ def get_board_from_cropped_img(img: Image.Image, num_tries=20) -> common.Positio
             # print(output)
 
             if color_flipped:
-                output = common.flip_color(output)
+                output = common.flip_color_tensor(output, CHESS)
 
             if sum is None:
                 sum = output
@@ -218,7 +230,7 @@ def get_board_from_cropped_img(img: Image.Image, num_tries=20) -> common.Positio
                 sum += output
             tries += 1
 
-    board = common.tensor_to_chess_board(sum.cpu())
+    board = common.tensor_to_position(sum.cpu(), CHESS)
     if board.occupied == 0:
         return None
     return board
@@ -228,7 +240,7 @@ def get_board_from_cropped_img(img: Image.Image, num_tries=20) -> common.Positio
 class FenResult:
     fen: str = None
     notation: str = None
-    game: str = CHESS.key
+    game: str = None
     cropped_image: Image.Image = None
     image_rotation_angle: int = None
     board_is_flipped: bool = None
@@ -240,11 +252,11 @@ def get_supported_games() -> list[str]:
 
 def get_fen(
     img: Image.Image,
+    game: str,
     num_tries=10,
     auto_rotate_image=True,
     mirror_when_180_rotation=False,
     auto_rotate_board=True,
-    game: str = CHESS.key,
 ):
     """Takes an image and returns an FEN (Forsyth-Edwards Notation) string.
 
@@ -307,7 +319,7 @@ def get_fen(
     return result
 
 
-def demo(root_dir: str, shuffle_files: bool):
+def demo(root_dir: str, shuffle_files: bool, game: str):
 
     if device.type == "cuda":
         print("Using GPU:", torch.cuda.get_device_name())
@@ -332,7 +344,7 @@ def demo(root_dir: str, shuffle_files: bool):
 
         img = img.rotate(random.choice(rotation_dataset.ROTATIONS), expand=True)
 
-        fen_result = get_fen(img)
+        fen_result = get_fen(img, game=game)
 
         if fen_result is None:
             print("Couldn't detect chessboard:", file_name)
@@ -342,7 +354,7 @@ def demo(root_dir: str, shuffle_files: bool):
         else:
             print(fen_result.fen)
 
-        true_fen = common.normalize_fen(Path(file_name).stem)
+        true_fen = common.normalize_position_notation(Path(file_name).stem, CHESS)
         if true_fen is None:
             print(f"WARNING: Couldn't find ground truth FEN")
         else:
@@ -359,8 +371,10 @@ def demo(root_dir: str, shuffle_files: bool):
             if fen_result.cropped_image is not None:
                 ax2.imshow(fen_result.cropped_image)
             if fen_result.fen is not None:
-                fen_img = common.get_image(fen_result.fen, width=512, height=512)
-                ax3.imshow(fen_img)
+                pos = common.position_from_notation(fen_result.fen, CHESS)
+                if pos is not None:
+                    fen_img = common.get_image(pos, width=512, height=512)
+                    ax3.imshow(fen_img)
 
         ax1.axis("off")
         ax2.axis("off")
@@ -378,7 +392,7 @@ if __name__ == "__main__":
         "--dir",
         type=str,
         required=True,
-        help="directory that contains images of chess diagrams",
+        help="directory that contains diagram images",
     )
     parser.add_argument(
         "--bbox_model",
@@ -399,10 +413,11 @@ if __name__ == "__main__":
         help="path to orientation_model model parameters",
     )
     parser.add_argument("--shuffle_files", action="store_true")
+    parser.add_argument("--game", type=str, required=True)
     args = parser.parse_args()
 
     bbox_model.set_model_path(args.bbox_model)
     fen_model.set_model_path(args.fen_model)
     orientation_model.set_model_path(args.orientation_model)
 
-    demo(root_dir=args.dir, shuffle_files=args.shuffle_files)
+    demo(root_dir=args.dir, shuffle_files=args.shuffle_files, game=args.game)

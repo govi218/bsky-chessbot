@@ -39,7 +39,8 @@ TEST_ACC_FREQ = 200
 
 
 def train(
-    data_root_dir="resources/chessboards_bbox_images/chessboards_bbox",
+    game: str,
+    data_root_dir=None,
     outdir="models",
     batch_size=8,
     num_epochs=2,
@@ -47,6 +48,8 @@ def train(
     augment_ratio=0.4,
     max_data=None,
 ):
+    if data_root_dir is None:
+        data_root_dir = f"resources/board_bbox_images/{game}/boards_bbox"
     start_time_string = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
     print(start_time_string)
 
@@ -101,31 +104,24 @@ def train(
 
             if (i + 1) % LOSS_REPORT_FREQ == 0:
                 print(
-                    "[%d, %4d] loss: %.4f, lr: %.5f"
-                    % (
-                        epoch + 1,
-                        i + 1,
-                        running_loss / LOSS_REPORT_FREQ,
-                        optimizer.param_groups[0]["lr"],
-                    )
+                    f"[{epoch + 1}, {i + 1:4d}] "
+                    f"loss: {running_loss / LOSS_REPORT_FREQ:.4f}, "
+                    f"lr: {optimizer.param_groups[0]['lr']:.5f}"
                 )
                 running_loss = 0.0
 
             if (i + 1) % TEST_ACC_FREQ == 0 or (i + 1) >= len(train_loader):
                 test_box_iou = get_box_iou(test_loader, model)
                 test_box_iou_list.append(test_box_iou)
-                print("Epoch %d: Test IOU: %.3f" % (epoch + 1, test_box_iou_list[-1]))
+                print(f"Epoch {epoch + 1}: Test IOU: {test_box_iou_list[-1]:.3f}")
 
                 if test_box_iou > best_box_iou:
                     best_box_iou = test_box_iou
                     best_model = model.state_dict()
-                    print("Best model updated: Test IOU: %.3f" % best_box_iou)
+                    print(f"Best model updated: Test IOU: {best_box_iou:.3f}")
 
     os.makedirs(outdir, exist_ok=True)
-    file_name = outdir + "/best_model_bbox_%.3f_%s.pth" % (
-        best_box_iou,
-        start_time_string,
-    )
+    file_name = f"{outdir}/best_model_bbox_{game}_{best_box_iou:.3f}_{start_time_string}.pth"
     print("Saving to", file_name)
     torch.save(best_model, file_name)
 

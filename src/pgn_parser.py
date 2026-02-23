@@ -3,11 +3,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
-try:
-    import pyffish as sf
-except ImportError:
-    sf = None
-
+import pyffish as sf
 
 @dataclass(frozen=True)
 class ParsedPGN:
@@ -18,22 +14,20 @@ class ParsedPGN:
 RESULT_TOKENS = {"1-0", "0-1", "1/2-1/2", "*"}
 
 
-def _require_pyffish():
-    if sf is None:
-        raise RuntimeError(
-            "pyffish is required for PGN replay but is not installed. Install project dependencies including pyffish."
-        )
-
 
 def parse_variant_tag(raw_variant: str | None) -> tuple[str, bool]:
-    raw = (raw_variant or "chess").strip().lower()
+    raw = (raw_variant or "").strip().lower()
+    if not raw:
+        raise ValueError("PGN Variant tag is required")
     chess960 = "960" in raw or "random" in raw
     variant = raw.removesuffix("960")
     if variant == "caparandom":
         return "capablanca", True
     if variant == "fischerandom":
         return "chess", True
-    return variant or "chess", chess960
+    if not variant:
+        raise ValueError("PGN Variant tag is required")
+    return variant, chess960
 
 
 def parse_pgn_tags(pgn_text: str) -> dict[str, str]:
@@ -78,9 +72,8 @@ def parse_pgn_game(pgn_text: str) -> ParsedPGN:
 
 
 def replay_moves_to_fens(
-    moves: list[str], variant: str = "chess", initial_fen: str | None = None, chess960: bool = False
+    moves: list[str], variant: str, initial_fen: str | None = None, chess960: bool = False
 ) -> list[str]:
-    _require_pyffish()
     fen = initial_fen or sf.start_fen(variant)
     fens: list[str] = []
     for move in moves:

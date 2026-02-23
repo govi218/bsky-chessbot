@@ -120,11 +120,11 @@ class ExistenceDataset(Dataset):
         return (input_img, torch.tensor(target).unsqueeze(0))
 
 
-def test_data_set():
+def test_data_set(game: str):
 
     c = ExistenceDataset(
-        with_board_root_dir="resources/chessboards_bbox_images/chessboards_bbox",
-        no_board_root_dir="resources/chessboards_bbox_images/no_chessboards",
+        with_board_root_dir=f"resources/board_bbox_images/{game}/boards_bbox",
+        no_board_root_dir=f"resources/board_bbox_images/{game}/no_boards",
         augment_ratio=0.5,
         max=1000,
     )

@@ -45,7 +45,3 @@ if __name__ == "__main__":
     model = BoardBBox()
 
     print(torch.cuda.is_available())
-
-
-# Backward compatibility alias
-ChessBoardBBox = BoardBBox

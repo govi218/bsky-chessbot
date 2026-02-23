@@ -14,10 +14,13 @@ TARGET_SIZE = consts.BOARD_PIXEL_WIDTH * 2
 
 
 def generate_existence_training_data(
-    outdir="resources/chessboards_bbox_images/no_chessboards",
+    game: str,
+    outdir=None,
     background_root_dir="resources/website_screenshots",
     num_total_out_positions=50000,
 ):
+    if outdir is None:
+        outdir = f"resources/board_bbox_images/{game}/no_boards"
     os.makedirs(outdir, exist_ok=True)
 
     background_root_dir = Path(background_root_dir)

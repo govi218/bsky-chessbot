@@ -27,7 +27,6 @@ EVAL = "eval"
 
 BBOX = "bbox"
 POSITION = "position"
-FEN = "fen"  # backward-compatible alias
 ORIENTATION = "orientation"
 IMAGE_ROTATION = "image_rotation"
 EXISTENCE = "existence"
@@ -38,15 +37,10 @@ functions = {
     (DATASET, BBOX): bbox_data.test_data_set,
     (TRAIN, BBOX): bbox_train.train,
 
-    (GENERATE, POSITION): position_gen.generate_fen_training_data,
+    (GENERATE, POSITION): position_gen.generate_position_training_data,
     (DATASET, POSITION): position_data.test_data_set,
     (TRAIN, POSITION): position_train.train,
     (EVAL, POSITION): position_eval.show_wrong_fens,
-
-    (GENERATE, FEN): position_gen.generate_fen_training_data,
-    (DATASET, FEN): position_data.test_data_set,
-    (TRAIN, FEN): position_train.train,
-    (EVAL, FEN): position_eval.show_wrong_fens,
 
     (DATASET, ORIENTATION): orientation_data.test_data_set,
     (TRAIN, ORIENTATION): orientation_train.train,
@@ -69,12 +63,16 @@ if __name__ == "__main__":
     parser.add_argument(
         "model",
         nargs="?",
-        choices=[BBOX, POSITION, FEN, ORIENTATION, IMAGE_ROTATION, EXISTENCE, None],
+        choices=[BBOX, POSITION, ORIENTATION, IMAGE_ROTATION, EXISTENCE, None],
         default=None,
         help="the model/pipeline to use",
     )
     parser.add_argument("--dir", type=str, help="directory that contains diagram images")
-    parser.add_argument("--game", type=str, default="chess", help="game key from src/games.py (e.g. chess, xiangqi)")
+    parser.add_argument("--game", type=str, required=True, help="game key from src/games.py (e.g. chess, xiangqi, shogi)")
+    parser.add_argument("--pgn", type=str, help="single PGN file path")
+    parser.add_argument("--pgn_train", type=str, help="train PGN file path")
+    parser.add_argument("--pgn_test", type=str, help="test PGN file path")
+    parser.add_argument("--model_path", type=str, help="model checkpoint path for eval commands")
     args = parser.parse_args()
 
     selection = (args.function, args.model)
@@ -91,5 +89,25 @@ if __name__ == "__main__":
         kwargs["root_dir"] = args.dir
     if "data_root_dir" in sig.parameters and args.dir is not None:
         kwargs["data_root_dir"] = args.dir
+    if "outdir_root" in sig.parameters and args.dir is not None:
+        kwargs["outdir_root"] = args.dir
+    if "data_with_board_root_dir" in sig.parameters and args.dir is not None:
+        kwargs["data_with_board_root_dir"] = args.dir
+    if "with_board_root_dir" in sig.parameters and args.dir is not None:
+        kwargs["with_board_root_dir"] = args.dir
+    if "board_root_dir" in sig.parameters and args.dir is not None:
+        kwargs["board_root_dir"] = args.dir
+    if "pgn_file" in sig.parameters and args.pgn is not None:
+        kwargs["pgn_file"] = args.pgn
+    if "pgn_file_name" in sig.parameters and args.pgn is not None:
+        kwargs["pgn_file_name"] = args.pgn
+    if "train_pgn_file" in sig.parameters and args.pgn_train is not None:
+        kwargs["train_pgn_file"] = args.pgn_train
+    if "test_pgn_file" in sig.parameters and args.pgn_test is not None:
+        kwargs["test_pgn_file"] = args.pgn_test
+    if "model_path" in sig.parameters and args.model_path is not None:
+        kwargs["model_path"] = args.model_path
+    if "model_file" in sig.parameters and args.model_path is not None:
+        kwargs["model_file"] = args.model_path
 
     fn(**kwargs)

@@ -8,12 +8,14 @@ from src.games import get_game
 
 
 def show_wrong_fens(
-    model_path="models/best_model_position_chess_0.943_2024-04-19-09-31-24.pth",
-    data_root_dir="resources/fen_images",
-    game: str = "chess",
+    model_path,
+    game: str,
+    data_root_dir=None,
     tile_size: int = consts.DEFAULT_TILE_SIZE,
 ):
     spec = get_game(game)
+    if data_root_dir is None:
+        data_root_dir = f"resources/board_position_images/{spec.key}"
 
     board_set = dataset.BoardPositionDataset(
         root_dir=data_root_dir,

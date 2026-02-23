@@ -36,7 +36,7 @@ def get_dense_model(out_features: int):
 
 
 class BoardRec(nn.Module):
-    def __init__(self, game: str = "chess", tile_size: int = consts.DEFAULT_TILE_SIZE):
+    def __init__(self, game: str, tile_size: int = consts.DEFAULT_TILE_SIZE):
         super().__init__()
         self.game = get_game(game)
         self.tile_size = tile_size
@@ -81,12 +81,6 @@ class BoardRec(nn.Module):
 
         return x
 
-
-class ChessRec(BoardRec):
-    def __init__(self):
-        super().__init__(game="chess")
-
-
 if __name__ == "__main__":
-    model = BoardRec(game="chess")
+    model = BoardRec(game="xiangqi")
     print(torch.cuda.is_available())

@@ -102,13 +102,6 @@ def pad(img: Image.Image, x, y):
     return new_img
 
 
-PIECE_TYPES = [*CHESS.piece_symbols, None]
-
-
-def square_to_idx(sq):
-    return (sq % 8) + (7 - (sq // 8)) * 8
-
-
 def _split_piece_placement_rows(piece_placement: str) -> list[str]:
     rows = piece_placement.strip().split("/")
     if not rows or any(row == "" for row in rows):
@@ -286,25 +279,6 @@ def position_from_notation(notation: str, game: str | GameSpec) -> Position | No
     return Position(game=spec.key, piece_placement=pp, side_to_move=side)
 
 
-def chess_board_to_tensor(board: Position | str):
-    if isinstance(board, str):
-        position = position_from_notation(board, CHESS)
-    else:
-        position = board
-
-    if position is None:
-        raise ValueError("Could not parse chess position")
-
-    grid = parse_piece_placement(position.piece_placement, CHESS)
-    return grid_to_tensor(grid, CHESS)
-
-
-def tensor_to_chess_board(tensor: torch.Tensor) -> Position:
-    grid = tensor_to_grid(tensor, CHESS)
-    pp = grid_to_piece_placement(grid, CHESS)
-    return Position(game=CHESS.key, piece_placement=pp)
-
-
 def position_to_tensor(position: Position) -> torch.Tensor:
     grid = parse_piece_placement(position.piece_placement, position.game)
     return grid_to_tensor(grid, position.game)
@@ -332,21 +306,11 @@ def tensor_to_position(
     )
 
 
-def flip_color(tensor: torch.Tensor):
-    return flip_color_tensor(tensor, CHESS)
-
-
-def rotate_board_tensor(tensor: torch.Tensor):
-    return rotate_tensor_180(tensor, CHESS)
-
-
 def get_image(position_or_notation: Position | str, width: int, height: int):
     if isinstance(position_or_notation, Position):
         position = position_or_notation
     else:
-        position = position_from_notation(position_or_notation, CHESS)
-        if position is None:
-            raise ValueError("Could not parse position notation")
+        raise ValueError("Pass a Position object to get_image()")
 
     spec = get_game(position.game)
     grid = parse_piece_placement(position.piece_placement, spec)
@@ -437,11 +401,6 @@ def normalize_position_notation(
 
     side = tokens[1] if len(tokens) >= 2 else "w"
     return f"{placement} {side}"
-
-
-def normalize_fen(pseudo_fen: str) -> str | None:
-    return normalize_position_notation(pseudo_fen, CHESS)
-
 
 def glob_all_image_files_recursively(dir) -> list:
     return list(

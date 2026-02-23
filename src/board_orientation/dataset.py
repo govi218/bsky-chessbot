@@ -9,7 +9,7 @@ from src.pgn_parser import iter_pgn_games, parse_pgn_game, parse_variant_tag, re
 
 class BoardOrientationDataset(Dataset):
 
-    def __init__(self, pgn_file_name, game: str = "chess", rotate_probability=0.3, max=100000):
+    def __init__(self, pgn_file_name, game: str, rotate_probability=0.3, max=100000):
         self.game = get_game(game)
         self.board_list = []
         self.rotate_probability = rotate_probability
@@ -57,12 +57,7 @@ class BoardOrientationDataset(Dataset):
         return (input, torch.tensor([1.0 if rotate else 0.0]))
 
 
-ChessBoardOrientationDataset = BoardOrientationDataset
-
-
-def test_data_set(game: str = "chess"):
-    pgn_file = "resources/lichess_games/lichess_db_standard_rated_2013-05.pgn"
-
+def test_data_set(game: str, pgn_file: str):
     spec = get_game(game)
     c = BoardOrientationDataset(pgn_file, game=spec, max=100)
 

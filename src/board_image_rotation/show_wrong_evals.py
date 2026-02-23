@@ -5,10 +5,10 @@ from src.board_image_rotation import dataset
 from src.board_image_rotation.model import ImageRotation
 
 
-def show_wrong_image_rotations(model_path="models/best_model_image_rotation_0.996_2024-04-14-22-59-55.pth"):
+def show_wrong_image_rotations(model_path, game: str):
 
     max_data = None
-    data_root_dir = "resources/fen_images"
+    data_root_dir = f"resources/board_position_images/{game}"
 
     board_image_set = dataset.BoardImageDataset(
         root_dir=data_root_dir,

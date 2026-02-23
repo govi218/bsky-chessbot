@@ -20,7 +20,3 @@ class BoardExistence(nn.Module):
 
     def forward(self, x):
         return self.model(x)
-
-
-# Backward compatibility alias
-ChessExistence = BoardExistence

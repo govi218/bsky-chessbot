@@ -105,9 +105,8 @@ class BoardImageDataset(Dataset):
         return (input_img, target)
 
 
-def test_data_set():
-
-    root_dir = "resources/fen_images/generated_board_positions"
+def test_data_set(game: str):
+    root_dir = f"resources/board_position_images/{game}/generated"
 
     dataset = BoardImageDataset(root_dir, max=1000)
 

@@ -14,12 +14,17 @@ TARGET_SIZE = consts.BOARD_PIXEL_WIDTH * 2
 
 
 def generate_bbox_training_data(
-    outdir="resources/chessboards_bbox_images/chessboards_bbox",
+    game: str,
+    outdir=None,
     background_root_dir="resources/website_screenshots",
-    board_root_dir="resources/fen_images/generated_board_positions",
+    board_root_dir=None,
     num_total_out_positions=50000,
     board_middleground_probability=0.4,
 ):
+    if outdir is None:
+        outdir = f"resources/board_bbox_images/{game}/boards_bbox"
+    if board_root_dir is None:
+        board_root_dir = f"resources/board_position_images/{game}/generated"
     os.makedirs(outdir, exist_ok=True)
 
     background_root_dir = Path(background_root_dir)

@@ -70,6 +70,7 @@ from chess_diagram_to_fen import get_fen
 img = Image.open("your_image.jpg")
 result = get_fen(
     img=img,
+    game="chess",
     num_tries=10,
     auto_rotate_image=True,
     auto_rotate_board=True
@@ -80,7 +81,7 @@ print(result.fen)
 
 Or use the demo program:
 ```shell
-uv run python chess_diagram_to_fen.py --dir resources/test_images/real_use_cases/
+uv run python chess_diagram_to_fen.py --game chess --dir resources/test_images/real_use_cases/
 ```
 
 
@@ -89,52 +90,48 @@ uv run python chess_diagram_to_fen.py --dir resources/test_images/real_use_cases
 #### Generate training data
 Needs about **40 GB** disk space.
 ```shell
-uv run python main.py generate fen
 uv run python main.py generate position --game chess
 
-# It is important to generate the fen data before
+# It is important to generate the position data before
 # the bbox and existence data, since the bbox data generation
-# relies on the fen training data
+# relies on the position training data
 
 uv sync --extra train-data
 ./download_website_screenshots.sh
-uv run python main.py generate bbox
-uv run python main.py generate existence
+uv run python main.py generate bbox --game chess
+uv run python main.py generate existence --game chess
 
 ./download_lichess_games.sh
 ```
 
-Additionally you can download [this Kaggle dataset](https://www.kaggle.com/datasets/koryakinp/chess-positions), unzip it, and place it into `resources/fen_images` to further augment the training data for FEN detection.
+Generated data is namespaced by game under `resources/board_position_images/<game>/...` and `resources/board_bbox_images/<game>/...`.
 
 #### Review datasets (optional)
 
 ```shell
-uv run python main.py dataset bbox
-uv run python main.py dataset fen
+uv run python main.py dataset bbox --game chess
 uv run python main.py dataset position --game chess
-uv run python main.py dataset orientation
-uv run python main.py dataset image_rotation
-uv run python main.py dataset existence
+uv run python main.py dataset orientation --game chess --pgn resources/lichess_games/lichess_db_standard_rated_2013-05.pgn
+uv run python main.py dataset image_rotation --game chess
+uv run python main.py dataset existence --game chess
 ```
 
 #### Train
 
 ```shell
-uv run python main.py train bbox
-uv run python main.py train fen
+uv run python main.py train bbox --game chess
 uv run python main.py train position --game chess
-uv run python main.py train orientation
-uv run python main.py train image_rotation
-uv run python main.py train existence
+uv run python main.py train orientation --game chess --pgn_train resources/lichess_games/lichess_db_standard_rated_2013-04.pgn --pgn_test resources/lichess_games/lichess_db_standard_rated_2013-05.pgn
+uv run python main.py train image_rotation --game chess
+uv run python main.py train existence --game chess
 ```
 
 #### Evaluate (optional)
 
 ```shell
-uv run python main.py eval fen
 uv run python main.py eval position --game chess
-uv run python main.py eval orientation
-uv run python main.py eval image_rotation
+uv run python main.py eval orientation --game chess --pgn resources/lichess_games/lichess_db_standard_rated_2013-05.pgn --model_path models/<orientation-model>.pth
+uv run python main.py eval image_rotation --game chess --model_path models/<image-rotation-model>.pth
 ```
 
 ## Examples

@@ -9,11 +9,11 @@ from src.pgn_parser import iter_pgn_games, parse_pgn_game, parse_variant_tag, re
 
 @torch.no_grad()
 def show_wrong_orientation_evals(
+    game: str,
+    pgn_file,
+    model_file,
     rotate_probability=0.5,
     no_rotate_bias=0.0,
-    pgn_file="resources/lichess_games/lichess_db_standard_rated_2013-05.pgn",
-    model_file="models/best_model_orientation_0.987_2024-02-04-17-34-05.pth",
-    game: str = "chess",
 ):
     spec = get_game(game)
     model = OrientationModel()
