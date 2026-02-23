@@ -240,6 +240,60 @@ def _list_board_themes(board_h: int, board_w: int) -> list[Image.Image]:
     return themes
 
 
+def _warp_piece_image(img: Image.Image) -> Image.Image:
+    w, h = img.size
+    # Piecewise mesh warp gives stronger non-linear deformation.
+    div_x = random.choice((2, 3))
+    div_y = random.choice((2, 3))
+    max_jitter = min(w, h) * random.uniform(0.0, 0.2)
+
+    x_grid = [i * (w - 1) / div_x for i in range(div_x + 1)]
+    y_grid = [i * (h - 1) / div_y for i in range(div_y + 1)]
+    points: list[list[tuple[float, float]]] = []
+    for gy, base_y in enumerate(y_grid):
+        row: list[tuple[float, float]] = []
+        for gx, base_x in enumerate(x_grid):
+            is_border = gx == 0 or gx == div_x or gy == 0 or gy == div_y
+            local_jitter = max_jitter * (0.7 if is_border else 1.0)
+            x = np.clip(
+                base_x + random.uniform(-local_jitter, local_jitter), 0.0, w - 1
+            )
+            y = np.clip(
+                base_y + random.uniform(-local_jitter, local_jitter), 0.0, h - 1
+            )
+            row.append((float(x), float(y)))
+        points.append(row)
+
+    mesh = []
+    for gy in range(div_y):
+        for gx in range(div_x):
+            left = int(round(x_grid[gx]))
+            upper = int(round(y_grid[gy]))
+            right = int(round(x_grid[gx + 1])) + 1
+            lower = int(round(y_grid[gy + 1])) + 1
+            if right <= left:
+                right = min(w, left + 1)
+            if lower <= upper:
+                lower = min(h, upper + 1)
+            if right <= left or lower <= upper:
+                continue
+            quad = (
+                *points[gy][gx],
+                *points[gy + 1][gx],
+                *points[gy + 1][gx + 1],
+                *points[gy][gx + 1],
+            )
+            mesh.append(((left, upper, right, lower), quad))
+
+    return img.transform(
+        (w, h),
+        Image.Transform.MESH,
+        mesh,
+        resample=Image.Resampling.BICUBIC,
+        fillcolor=(0, 0, 0, 0),
+    )
+
+
 def _board_to_image(
     position: common.Position,
     board_image: Image.Image,
@@ -247,9 +301,21 @@ def _board_to_image(
     piece_images: dict[str, Image.Image],
     random_offset: int,
 ) -> Image.Image:
+
     spec = get_game(position.game)
     img = board_image.copy()
     grid = common.parse_piece_placement(position.piece_placement, spec)
+    use_warped_pieces = random.random() < 0.8
+    per_board_piece_images = piece_images
+    if use_warped_pieces:
+        # Keep one warp per piece type (e.g. all pawns share the same warp on this board).
+        warped_by_type: dict[str, Image.Image] = {}
+        per_board_piece_images = {}
+        for key, piece_img in piece_images.items():
+            piece_type = key
+            if piece_type not in warped_by_type:
+                warped_by_type[piece_type] = _warp_piece_image(piece_img)
+            per_board_piece_images[key] = warped_by_type[piece_type]
 
     idx = 0
     for row in range(spec.board_rows):
@@ -259,7 +325,7 @@ def _board_to_image(
             if piece is None:
                 continue
 
-            piece_img = piece_images[_symbol_to_asset_key(piece)]
+            piece_img = per_board_piece_images[_symbol_to_asset_key(piece)]
             if random.randint(0, 1) == 1:
                 piece_img = ImageOps.mirror(piece_img)
 
