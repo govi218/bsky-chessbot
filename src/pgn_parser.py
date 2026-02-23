@@ -2,7 +2,6 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-
 import pyffish as sf
 
 @dataclass(frozen=True)
@@ -38,37 +37,195 @@ def parse_pgn_tags(pgn_text: str) -> dict[str, str]:
     return tags
 
 
-def _strip_pgn_noise(move_text: str) -> str:
-    move_text = re.sub(r"\{[^}]*\}", " ", move_text)
-    move_text = re.sub(r";[^\n]*", " ", move_text)
-    move_text = re.sub(r"\([^)]*\)", " ", move_text)
-    move_text = re.sub(r"\$\d+", " ", move_text)
-    return move_text
+def _split_headers_and_body(pgn_text: str) -> tuple[dict[str, str], str]:
+    tags: dict[str, str] = {}
+    body_lines: list[str] = []
+    headers_parsed = False
+
+    for raw_line in pgn_text.splitlines():
+        line = raw_line.strip()
+        if not headers_parsed and line.startswith("["):
+            match = re.match(r'^\[([A-Za-z0-9_]+)\s+"((?:[^"\\]|\\.)*)"\]\s*$', line)
+            if match:
+                tags[match.group(1)] = match.group(2).replace('\\"', '"')
+            continue
+
+        headers_parsed = True
+        body_lines.append(raw_line)
+
+    return tags, "\n".join(body_lines)
+
+
+def _skip_comment(text: str, idx: int) -> int:
+    end = text.find("}", idx)
+    if end < 0:
+        raise ValueError("Missing '}' for PGN comment")
+    return end + 1
+
+
+def _normalize_san_token(move: str) -> str:
+    move = move.strip()
+    move = move.replace("0-0-0", "O-O-O").replace("0-0", "O-O")
+    move = re.sub(r"[?!]+$", "", move)
+    move = re.sub(r"[+#]+$", "", move)
+    return move
+
+
+def _safe_get_san(variant: str, fen: str, move: str, chess960: bool, notation: int | None = None) -> str:
+    if notation is None:
+        try:
+            return sf.get_san(variant, fen, move, chess960)
+        except TypeError:
+            return sf.get_san(variant, fen, move)
+    return sf.get_san(variant, fen, move, chess960, notation)
+
+
+def _legal_moves(
+    variant: str,
+    initial_fen: str,
+    fen: str,
+    history: list[str],
+    chess960: bool,
+) -> list[str]:
+    # Janggi and Ataxx may require history for legal move generation.
+    if variant in {"janggi", "ataxx"}:
+        return list(sf.legal_moves(variant, initial_fen, history, chess960))
+    return list(sf.legal_moves(variant, fen, [], chess960))
+
+
+def _resolve_move_token(
+    token: str,
+    variant: str,
+    initial_fen: str,
+    fen: str,
+    history: list[str],
+    chess960: bool,
+) -> str:
+    legal = _legal_moves(variant, initial_fen, fen, history, chess960)
+
+    # If PGN move text already contains UCI-like moves, accept directly.
+    if token in legal:
+        return token
+
+    norm = _normalize_san_token(token)
+    notation_candidates = [
+        getattr(sf, "NOTATION_SAN", None),
+        getattr(sf, "NOTATION_JANGGI", None),
+        getattr(sf, "NOTATION_XIANGQI_WXF", None),
+        getattr(sf, "NOTATION_SHOGI_HODGES_NUMBER", None),
+    ]
+
+    for move in legal:
+        san_default = _normalize_san_token(_safe_get_san(variant, fen, move, chess960))
+        if san_default == norm:
+            return move
+        for notation in notation_candidates:
+            if notation is None:
+                continue
+            try:
+                san = _normalize_san_token(_safe_get_san(variant, fen, move, chess960, notation=notation))
+            except Exception:
+                continue
+            if san == norm:
+                return move
+
+    raise ValueError(f"Illegal move token in PGN: '{token}'")
 
 
 def extract_mainline_moves(move_text: str) -> list[str]:
-    text = _strip_pgn_noise(move_text)
-    tokens = re.split(r"\s+", text.strip())
     moves: list[str] = []
-    for tok in tokens:
-        if not tok:
+    idx = 0
+    n = len(move_text)
+    while idx < n:
+        ch = move_text[idx]
+
+        if ch.isspace():
+            idx += 1
             continue
-        if tok in RESULT_TOKENS:
+
+        if ch == "{":
+            idx = _skip_comment(move_text, idx)
             continue
-        if re.match(r"^\d+\.(\.\.)?$", tok):
+
+        if ch == ";":
+            end = move_text.find("\n", idx)
+            idx = n if end < 0 else end + 1
             continue
-        tok = re.sub(r"^\d+\.(\.\.)?", "", tok)
-        if not tok or tok in RESULT_TOKENS:
+
+        if ch == "(":
+            depth = 1
+            idx += 1
+            while idx < n and depth > 0:
+                if move_text[idx] == "{":
+                    idx = _skip_comment(move_text, idx)
+                    continue
+                if move_text[idx] == "(":
+                    depth += 1
+                elif move_text[idx] == ")":
+                    depth -= 1
+                idx += 1
             continue
-        moves.append(tok)
+
+        if ch == "$":
+            idx += 1
+            while idx < n and move_text[idx].isdigit():
+                idx += 1
+            continue
+
+        if ch.isdigit():
+            while idx < n and move_text[idx].isdigit():
+                idx += 1
+            while idx < n and move_text[idx] in ". ":
+                idx += 1
+            continue
+
+        end = idx
+        while end < n and not move_text[end].isspace():
+            end += 1
+        token = move_text[idx:end]
+        idx = end
+
+        if token in RESULT_TOKENS:
+            break
+
+        token = _normalize_san_token(token)
+        if token and token not in RESULT_TOKENS:
+            moves.append(token)
+
     return moves
 
 
-def parse_pgn_game(pgn_text: str) -> ParsedPGN:
-    tags = parse_pgn_tags(pgn_text)
-    body = re.sub(r'^\s*\[[^\]]*\]\s*$', "", pgn_text, flags=re.MULTILINE)
-    moves = extract_mainline_moves(body)
+def read_game_pgn(pgn_text: str) -> ParsedPGN:
+    tags, body = _split_headers_and_body(pgn_text)
+    variant, chess960 = parse_variant_tag(tags.get("Variant"))
+    initial_fen = tags.get("FEN") or sf.start_fen(variant)
+
+    raw_tokens = extract_mainline_moves(body)
+    fen = initial_fen
+    history: list[str] = []
+    moves: list[str] = []
+
+    for token in raw_tokens:
+        move = _resolve_move_token(
+            token,
+            variant=variant,
+            initial_fen=initial_fen,
+            fen=fen,
+            history=history,
+            chess960=chess960,
+        )
+        moves.append(move)
+        history.append(move)
+        try:
+            fen = sf.get_fen(variant, fen, [move], chess960, False, False, 0)
+        except TypeError:
+            fen = sf.get_fen(variant, fen, [move], chess960)
+
     return ParsedPGN(tags=tags, moves=moves)
+
+
+def parse_pgn_game(pgn_text: str) -> ParsedPGN:
+    return read_game_pgn(pgn_text)
 
 
 def replay_moves_to_fens(
