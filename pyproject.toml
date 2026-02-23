@@ -24,7 +24,7 @@ dependencies = [
   "tqdm",
   "pyffish",
   "cairosvg",
-  "pyfastnoisesimd"
+  "pyfastnoiselite"
 ]
 
 [project.optional-dependencies]

@@ -4,14 +4,26 @@ from io import BytesIO
 from pathlib import Path
 
 import numpy as np
-import pyfastnoisesimd as fns
 from cairosvg import svg2png
 from PIL import Image, ImageDraw, ImageFont, ImageOps
+from pyfastnoiselite.pyfastnoiselite import (
+    CellularDistanceFunction,
+    CellularReturnType,
+    DomainWarpType,
+    FastNoiseLite,
+    FractalType,
+    NoiseType,
+    RotationType3D,
+)
 from tqdm import tqdm
 
 from src import common, consts
 from src.games import get_game
-from src.render_config import get_render_config, list_board_theme_paths, open_board_theme
+from src.render_config import (
+    get_render_config,
+    list_board_theme_paths,
+    open_board_theme,
+)
 
 
 def _random_uniform_board(board_h: int, board_w: int) -> Image.Image:
@@ -26,23 +38,118 @@ def _random_uniform_board(board_h: int, board_w: int) -> Image.Image:
     return Image.new("RGBA", (board_w, board_h), color)
 
 
+def _make_noise_generator() -> FastNoiseLite:
+    noise = FastNoiseLite(seed=random.randint(0, 2**31 - 1))
+
+    # --- Noise Type ---
+    noise_type = random.choice(
+        [
+            NoiseType.NoiseType_OpenSimplex2,
+            NoiseType.NoiseType_OpenSimplex2S,
+            NoiseType.NoiseType_Cellular,
+            NoiseType.NoiseType_Perlin,
+            NoiseType.NoiseType_ValueCubic,
+            NoiseType.NoiseType_Value,
+        ]
+    )
+    noise.noise_type = noise_type
+    noise.frequency = random.uniform(0.003, 0.06)
+
+    # --- Rotation Type 3D ---
+    noise.rotation_type_3d = random.choice(
+        [
+            RotationType3D.RotationType3D_None,
+            RotationType3D.RotationType3D_ImproveXYPlanes,
+            RotationType3D.RotationType3D_ImproveXZPlanes,
+        ]
+    )
+
+    # --- Fractal Type ---
+    fractal_type = random.choice(
+        [
+            FractalType.FractalType_None,
+            FractalType.FractalType_FBm,
+            FractalType.FractalType_Ridged,
+            FractalType.FractalType_PingPong,
+            FractalType.FractalType_DomainWarpProgressive,
+            FractalType.FractalType_DomainWarpIndependent,
+        ]
+    )
+    noise.fractal_type = fractal_type
+
+    if fractal_type != FractalType.FractalType_None:
+        noise.fractal_octaves = random.randint(2, 8)
+        noise.fractal_lacunarity = random.uniform(1.5, 3.0)
+        noise.fractal_gain = random.uniform(0.3, 0.7)
+        noise.fractal_weighted_strength = random.uniform(0.0, 1.0)
+        if fractal_type == FractalType.FractalType_PingPong:
+            noise.fractal_ping_pong_strength = random.uniform(1.0, 5.0)
+
+    # --- Cellular settings (only meaningful for Cellular noise) ---
+    if noise_type == NoiseType.NoiseType_Cellular:
+        noise.cellular_distance_function = random.choice(
+            [
+                CellularDistanceFunction.CellularDistanceFunction_Euclidean,
+                CellularDistanceFunction.CellularDistanceFunction_EuclideanSq,
+                CellularDistanceFunction.CellularDistanceFunction_Manhattan,
+                CellularDistanceFunction.CellularDistanceFunction_Hybrid,
+            ]
+        )
+        noise.cellular_return_type = random.choice(
+            [
+                CellularReturnType.CellularReturnType_CellValue,
+                CellularReturnType.CellularReturnType_Distance,
+                CellularReturnType.CellularReturnType_Distance2,
+                CellularReturnType.CellularReturnType_Distance2Add,
+                CellularReturnType.CellularReturnType_Distance2Sub,
+                CellularReturnType.CellularReturnType_Distance2Mul,
+                CellularReturnType.CellularReturnType_Distance2Div,
+            ]
+        )
+        noise.cellular_jitter = random.uniform(0.2, 1.5)
+
+    # --- Domain Warp ---
+    if random.random() < 0.4:
+        noise.domain_warp_type = random.choice(
+            [
+                DomainWarpType.DomainWarpType_OpenSimplex2,
+                DomainWarpType.DomainWarpType_OpenSimplex2Reduced,
+                DomainWarpType.DomainWarpType_BasicGrid,
+            ]
+        )
+        noise.domain_warp_amp = random.uniform(10.0, 200.0)
+
+    return noise
+
+
 def _noisy_gray_board(board_h: int, board_w: int) -> Image.Image:
-    noise = fns.Noise()
-    noise.noise_type = fns.NoiseType.Simplex
-    noise.frequency = random.uniform(0.001, 0.06)
-    noise_array = noise.genAsGrid(shape=(board_h, board_w), start=(0, 0))
-    noise_array = np.interp(noise_array, (noise_array.min(), noise_array.max()), (0, 255)).astype(np.uint8)
+    noise = _make_noise_generator()
+    ys, xs = np.mgrid[0:board_h, 0:board_w].astype(np.float32)
+    coords = np.array([xs.reshape(-1), ys.reshape(-1)], dtype=np.float32)
+    noise_array = noise.gen_from_coords(coords).reshape((board_h, board_w))
+    noise_array = np.interp(
+        noise_array, (noise_array.min(), noise_array.max()), (0, 255)
+    ).astype(np.uint8)
     return Image.fromarray(noise_array, mode="L")
 
 
 def _noisy_color_board(board_h: int, board_w: int) -> Image.Image:
-    return Image.merge("RGB", (_noisy_gray_board(board_h, board_w), _noisy_gray_board(board_h, board_w), _noisy_gray_board(board_h, board_w)))
+    return Image.merge(
+        "RGB",
+        (
+            _noisy_gray_board(board_h, board_w),
+            _noisy_gray_board(board_h, board_w),
+            _noisy_gray_board(board_h, board_w),
+        ),
+    )
 
 
 def _svg_to_image(svg_file: Path, tile_size: int) -> Image.Image:
     with open(svg_file, "rb") as f:
         svg_data = f.read()
-    png_data = svg2png(bytestring=svg_data, output_width=tile_size, output_height=tile_size)
+    png_data = svg2png(
+        bytestring=svg_data, output_width=tile_size, output_height=tile_size
+    )
     return Image.open(BytesIO(png_data)).convert("RGBA")
 
 
@@ -52,7 +159,12 @@ def _placeholder_piece(symbol: str, tile_size: int) -> Image.Image:
     fill = (235, 235, 235, 255) if symbol.isupper() else (35, 35, 35, 255)
     outline = (20, 20, 20, 255) if symbol.isupper() else (220, 220, 220, 255)
     margin = max(1, tile_size // 12)
-    draw.ellipse((margin, margin, tile_size - margin, tile_size - margin), fill=fill, outline=outline, width=max(1, tile_size // 20))
+    draw.ellipse(
+        (margin, margin, tile_size - margin, tile_size - margin),
+        fill=fill,
+        outline=outline,
+        width=max(1, tile_size // 20),
+    )
     font = ImageFont.load_default()
     text = symbol.upper()
     bbox = draw.textbbox((0, 0), text, font=font)
@@ -78,7 +190,9 @@ def _load_piece_images(game: str, tile_size: int) -> list[dict[str, Image.Image]
         images: dict[str, Image.Image] = {}
         if piece_set.use_placeholders:
             for symbol in spec.piece_symbols:
-                images[_symbol_to_asset_key(symbol)] = _placeholder_piece(symbol, tile_size)
+                images[_symbol_to_asset_key(symbol)] = _placeholder_piece(
+                    symbol, tile_size
+                )
             all_sets.append(images)
             continue
 
@@ -103,7 +217,10 @@ def _load_piece_images(game: str, tile_size: int) -> list[dict[str, Image.Image]
         all_sets.append(images)
 
     if not all_sets:
-        fallback = {_symbol_to_asset_key(s): _placeholder_piece(s, tile_size) for s in spec.piece_symbols}
+        fallback = {
+            _symbol_to_asset_key(s): _placeholder_piece(s, tile_size)
+            for s in spec.piece_symbols
+        }
         all_sets.append(fallback)
 
     return all_sets
@@ -123,7 +240,13 @@ def _list_board_themes(board_h: int, board_w: int) -> list[Image.Image]:
     return themes
 
 
-def _board_to_image(position: common.Position, board_image: Image.Image, tile_size: int, piece_images: dict[str, Image.Image], random_offset: int) -> Image.Image:
+def _board_to_image(
+    position: common.Position,
+    board_image: Image.Image,
+    tile_size: int,
+    piece_images: dict[str, Image.Image],
+    random_offset: int,
+) -> Image.Image:
     spec = get_game(position.game)
     img = board_image.copy()
     grid = common.parse_piece_placement(position.piece_placement, spec)
@@ -163,12 +286,14 @@ def _random_position(game: str) -> common.Position:
             continue
         grid[square] = random.choice(spec.piece_symbols)
 
-    return common.Position(game=spec.key, piece_placement=common.grid_to_piece_placement(grid, spec))
+    return common.Position(
+        game=spec.key, piece_placement=common.grid_to_piece_placement(grid, spec)
+    )
 
 
 def generate_position_training_data(
     game: str,
-    num_total_out_positions=300000,
+    num_total_out_positions=300,
     outdir_root=None,
     max_files_per_folder=10000,
     tile_size: int = consts.DEFAULT_TILE_SIZE,
@@ -177,12 +302,14 @@ def generate_position_training_data(
     if outdir_root is None:
         outdir_root = f"resources/board_position_images/{spec.key}/generated"
     board_h, board_w = consts.board_pixel_size(spec, tile_size)
-    random_offset = max(1, tile_size // 40)
+    random_offset = max(1, tile_size // 30)
 
     piece_image_sets = _load_piece_images(spec.key, tile_size)
     board_themes = _list_board_themes(board_h, board_w)
 
-    num_positions_per_combo = max(1, num_total_out_positions // (len(piece_image_sets) * len(board_themes)))
+    num_positions_per_combo = max(
+        1, num_total_out_positions // (len(piece_image_sets) * len(board_themes))
+    )
     print("num_positions_per_combo:", num_positions_per_combo)
 
     current_files_in_folder = 0
@@ -197,10 +324,17 @@ def generate_position_training_data(
                 if random.randint(0, 1) == 1:
                     current_board = ImageOps.flip(current_board)
                 if random.randint(0, 1) == 1:
-                    noise = _noisy_color_board(board_h, board_w) if random.randint(0, 1) == 1 else _noisy_gray_board(board_h, board_w)
+                    noise = (
+                        _noisy_color_board(board_h, board_w)
+                        if random.randint(0, 1) == 1
+                        else _noisy_gray_board(board_h, board_w)
+                    )
                     current_board.paste(noise, mask=_noisy_gray_board(board_h, board_w))
 
-                if current_outdir is None or current_files_in_folder >= max_files_per_folder:
+                if (
+                    current_outdir is None
+                    or current_files_in_folder >= max_files_per_folder
+                ):
                     current_files_in_folder = 0
                     current_outdir = None
                     for i in range(num_total_out_positions):
@@ -212,7 +346,9 @@ def generate_position_training_data(
                     os.makedirs(current_outdir, exist_ok=True)
 
                 position = _random_position(spec.key)
-                image = _board_to_image(position, current_board, tile_size, piece_images, random_offset).convert("RGB")
+                image = _board_to_image(
+                    position, current_board, tile_size, piece_images, random_offset
+                ).convert("RGB")
 
                 if random.randint(0, 1) == 1:
                     position = _flip_piece_colors(position)
