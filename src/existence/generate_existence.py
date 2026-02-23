@@ -1,9 +1,7 @@
-from pathlib import Path
 import random
-import time
-import os
+from pathlib import Path
+
 from PIL import Image
-from tqdm import tqdm
 
 from src import consts, common
 
@@ -13,51 +11,25 @@ MAX_CROP_SIZE = consts.BOARD_PIXEL_WIDTH * 4
 TARGET_SIZE = consts.BOARD_PIXEL_WIDTH * 2
 
 
-def generate_existence_training_data(
-    game: str,
-    outdir=None,
-    background_root_dir="resources/website_screenshots",
-    num_total_out_positions=50000,
-):
-    if outdir is None:
-        outdir = f"resources/board_bbox_images/{game}/no_boards"
-    os.makedirs(outdir, exist_ok=True)
+class NoboardGenerator:
+    def __init__(self, background_root_dir: str = "resources/website_screenshots"):
+        background_root_dir = Path(background_root_dir)
+        assert background_root_dir.is_dir(), f"With background_root_dir = {background_root_dir}"
+        self.background_image_files = common.glob_all_image_files_recursively(background_root_dir)
+        assert len(self.background_image_files) > 0, "No background images found"
 
-    background_root_dir = Path(background_root_dir)
-    assert (
-        background_root_dir.is_dir()
-    ), f"With background_root_dir = {background_root_dir}"
-    background_image_files = common.glob_all_image_files_recursively(background_root_dir)
-    random.shuffle(background_image_files)
+    def generate_one(self) -> Image.Image:
+        bg_path = random.choice(self.background_image_files)
+        img = Image.open(bg_path).convert("RGB")
 
-    if num_total_out_positions is not None:
-        background_image_files = background_image_files[
-            0 : min(len(background_image_files), num_total_out_positions)
-        ]
-
-    for i, background_file_name in enumerate(tqdm(background_image_files)):
-        img = Image.open(background_file_name).convert("RGB")
-
-        # Get the image dimensions
         img_width, img_height = img.size
-
-        # Choose a random width and height
         max_size = min(img_width, img_height, MAX_CROP_SIZE)
         crop_width = random.randint(MIN_CROP_SIZE, max_size)
         crop_height = random.randint(MIN_CROP_SIZE, max_size)
 
-        # Choose a random position for the crop
         x = random.randint(0, img_width - crop_width)
         y = random.randint(0, img_height - crop_height)
 
-        # Crop the image
         img = img.crop((x, y, x + crop_width, y + crop_height))
         img = img.resize((TARGET_SIZE, TARGET_SIZE))
-
-        file_name = (
-            outdir
-            + f"/{i}.jpg"
-        )
-
-        # # Save the result
-        img.save(file_name)
+        return img

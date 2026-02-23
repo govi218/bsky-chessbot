@@ -11,32 +11,6 @@ It works in multiple steps:
 
 All these steps (except the fifth) basically use some common pretrained convolutional models available via torchvision with slightly modified heads. Detection is made robust using demanding generated training data and augmentations.
 
-## Multi-game pipeline
-
-The training/data pipeline is now game-aware for rectangular grids and single-piece-per-square games.
-
-- `src/games.py` defines game specs (`chess`, `xiangqi`), including board dimensions and piece alphabets.
-- `src/common.py` contains game-agnostic helpers for:
-  - parsing/normalizing piece-placement notation on rectangular boards,
-  - converting board grids to/from tensors,
-  - 180° rotation and color-flip transforms by game spec.
-- `src/fen_recognition/*` is now generic (`BoardRec`, `BoardPositionDataset`) and accepts `game`/`tile_size`.
-- `src/board_orientation/*` now replays PGN via `pyffish` and accepts `game`.
-
-Current end-user image inference (`get_fen`) remains chess-only for model-weight compatibility, but training/eval entrypoints accept `--game`.
-
-Xiangqi notation normalization example:
-
-```python
-from src import common
-
-notation = common.normalize_position_notation(
-    "rheakaehr_9_1c5c1_p1p1p1p1p_9_9_P1P1P1P1P_1C5C1_9_RHEAKAEHR",
-    game="xiangqi",
-)
-print(notation)  # rheakaehr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RHEAKAEHR w
-```
-
 ## Install
 
 Install [uv](https://docs.astral.sh/uv/getting-started/installation/) and then clone the project:
@@ -88,50 +62,39 @@ uv run python chess_diagram_to_fen.py --game chess --dir resources/test_images/r
 ## Train models yourself
 
 #### Generate training data
-Needs about **40 GB** disk space.
+
 ```shell
-uv run python main.py generate position --game chess
-
-# It is important to generate the position data before
-# the bbox and existence data, since the bbox data generation
-# relies on the position training data
-
-uv sync --extra train-data
 ./download_website_screenshots.sh
-uv run python main.py generate bbox --game chess
-uv run python main.py generate existence --game chess
-
 ./download_lichess_games.sh
 ```
-
-Generated data is namespaced by game under `resources/board_position_images/<game>/...` and `resources/board_bbox_images/<game>/...`.
 
 #### Review datasets (optional)
 
 ```shell
-uv run python main.py dataset bbox --game chess
 uv run python main.py dataset position --game chess
-uv run python main.py dataset orientation --game chess --pgn resources/lichess_games/lichess_db_standard_rated_2013-05.pgn
+uv run python main.py dataset bbox --game chess
 uv run python main.py dataset image_rotation --game chess
 uv run python main.py dataset existence --game chess
+uv run python main.py dataset orientation --game chess --pgn resources/lichess_games/lichess_db_standard_rated_2013-05.pgn
 ```
 
 #### Train
 
 ```shell
-uv run python main.py train bbox --game chess
 uv run python main.py train position --game chess
-uv run python main.py train orientation --game chess --pgn_train resources/lichess_games/lichess_db_standard_rated_2013-04.pgn --pgn_test resources/lichess_games/lichess_db_standard_rated_2013-05.pgn
+uv run python main.py train bbox --game chess
 uv run python main.py train image_rotation --game chess
 uv run python main.py train existence --game chess
+uv run python main.py train orientation --game chess --pgn_train resources/lichess_games/lichess_db_standard_rated_2013-04.pgn --pgn_test resources/lichess_games/lichess_db_standard_rated_2013-05.pgn
 ```
 
 #### Evaluate (optional)
 
 ```shell
-uv run python main.py eval position --game chess
+uv run python main.py eval position --game chess --model_path models/<position-model>.pth
 uv run python main.py eval orientation --game chess --pgn resources/lichess_games/lichess_db_standard_rated_2013-05.pgn --model_path models/<orientation-model>.pth
 uv run python main.py eval image_rotation --game chess --model_path models/<image-rotation-model>.pth
+uv run python main.py eval existence --game chess --model_path models/<existence-model>.pth
 ```
 
 ## Examples

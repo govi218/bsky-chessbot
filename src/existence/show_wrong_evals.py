@@ -1,21 +1,17 @@
-import torch
 import matplotlib.pyplot as plt
+import torch
 
 from src.existence import dataset
 from src.existence.model import BoardExistence
 
 
-def show_wrong_existence(model_path, game: str):
-
-    max_data = None
-
-    board_image_set = dataset.ExistenceDataset(
-        with_board_root_dir=f"resources/board_bbox_images/{game}/boards_bbox",
-        no_board_root_dir=f"resources/board_bbox_images/{game}/no_boards",
-        augment_ratio=0.8,
-        affine_augment_ratio=0.8,
-        max=max_data,
-    )
+def show_wrong_existence(
+    model_path,
+    game: str,
+    eval_size: int = 1000,
+    seed: int = 42,
+):
+    test_set = dataset.generate_fixed_test_set(game=game, size=eval_size, seed=seed)
 
     model = BoardExistence()
     model.load_state_dict(torch.load(model_path, map_location=torch.device("cpu")))
@@ -23,8 +19,7 @@ def show_wrong_existence(model_path, game: str):
 
     correct = 0
     total = 0
-    for img, target in board_image_set:
-
+    for img, target in test_set:
         total += 1
 
         with torch.no_grad():

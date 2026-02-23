@@ -1,4 +1,3 @@
-import os
 import random
 from io import BytesIO
 from pathlib import Path
@@ -15,7 +14,6 @@ from pyfastnoiselite.pyfastnoiselite import (
     NoiseType,
     RotationType3D,
 )
-from tqdm import tqdm
 
 from src import common, consts
 from src.games import get_game
@@ -357,69 +355,59 @@ def _random_position(game: str) -> common.Position:
     )
 
 
-def generate_position_training_data(
-    game: str,
-    num_total_out_positions=300,
-    outdir_root=None,
-    max_files_per_folder=10000,
-    tile_size: int = consts.DEFAULT_TILE_SIZE,
-):
-    spec = get_game(game)
-    if outdir_root is None:
-        outdir_root = f"resources/board_position_images/{spec.key}/generated"
-    board_h, board_w = consts.board_pixel_size(spec, tile_size)
-    random_offset = max(1, tile_size // 30)
+class BoardGenerator:
+    def __init__(self, game: str, tile_size: int = consts.DEFAULT_TILE_SIZE):
+        self.spec = get_game(game)
+        self.tile_size = tile_size
+        self.board_h, self.board_w = consts.board_pixel_size(self.spec, tile_size)
+        self.random_offset = max(1, tile_size // 30)
+        self.piece_image_sets = _load_piece_images(self.spec.key, tile_size)
+        self.disk_themes = []
+        for path in list_board_theme_paths():
+            try:
+                self.disk_themes.append(
+                    open_board_theme(path, board_w=self.board_w, board_h=self.board_h)
+                )
+            except Exception:
+                continue
 
-    piece_image_sets = _load_piece_images(spec.key, tile_size)
-    board_themes = _list_board_themes(board_h, board_w)
+    def generate_one(self) -> tuple[Image.Image, common.Position]:
+        board_h, board_w = self.board_h, self.board_w
 
-    num_positions_per_combo = max(
-        1, num_total_out_positions // (len(piece_image_sets) * len(board_themes))
-    )
-    print("num_positions_per_combo:", num_positions_per_combo)
+        # Pick a random board background: uniform, noise-gray, noise-color, or disk theme
+        theme_choice = random.choice(
+            ["uniform", "noise_gray", "noise_color"]
+            + (["disk"] if self.disk_themes else [])
+        )
+        if theme_choice == "uniform":
+            current_board = _random_uniform_board(board_h, board_w)
+        elif theme_choice == "noise_gray":
+            current_board = _noisy_gray_board(board_h, board_w).convert("RGBA")
+        elif theme_choice == "noise_color":
+            current_board = _noisy_color_board(board_h, board_w).convert("RGBA")
+        else:
+            current_board = random.choice(self.disk_themes).copy()
 
-    current_files_in_folder = 0
-    current_outdir: str | None = None
+        if random.randint(0, 1) == 1:
+            current_board = ImageOps.mirror(current_board)
+        if random.randint(0, 1) == 1:
+            current_board = ImageOps.flip(current_board)
+        if random.randint(0, 1) == 1:
+            noise = (
+                _noisy_color_board(board_h, board_w)
+                if random.randint(0, 1) == 1
+                else _noisy_gray_board(board_h, board_w)
+            )
+            current_board.paste(noise, mask=_noisy_gray_board(board_h, board_w))
 
-    for piece_images in tqdm(piece_image_sets):
-        for board_theme in board_themes:
-            for _ in range(num_positions_per_combo):
-                current_board = board_theme.copy()
-                if random.randint(0, 1) == 1:
-                    current_board = ImageOps.mirror(current_board)
-                if random.randint(0, 1) == 1:
-                    current_board = ImageOps.flip(current_board)
-                if random.randint(0, 1) == 1:
-                    noise = (
-                        _noisy_color_board(board_h, board_w)
-                        if random.randint(0, 1) == 1
-                        else _noisy_gray_board(board_h, board_w)
-                    )
-                    current_board.paste(noise, mask=_noisy_gray_board(board_h, board_w))
+        piece_images = random.choice(self.piece_image_sets)
+        position = _random_position(self.spec.key)
+        image = _board_to_image(
+            position, current_board, self.tile_size, piece_images, self.random_offset
+        ).convert("RGB")
 
-                if (
-                    current_outdir is None
-                    or current_files_in_folder >= max_files_per_folder
-                ):
-                    current_files_in_folder = 0
-                    current_outdir = None
-                    for i in range(num_total_out_positions):
-                        candidate = f"{outdir_root}/{i}"
-                        if not os.path.exists(candidate):
-                            current_outdir = candidate
-                            break
-                    assert current_outdir is not None
-                    os.makedirs(current_outdir, exist_ok=True)
+        if random.randint(0, 1) == 1:
+            position = _flip_piece_colors(position)
+            image = ImageOps.invert(image)
 
-                position = _random_position(spec.key)
-                image = _board_to_image(
-                    position, current_board, tile_size, piece_images, random_offset
-                ).convert("RGB")
-
-                if random.randint(0, 1) == 1:
-                    position = _flip_piece_colors(position)
-                    image = ImageOps.invert(image)
-
-                encoded = position.notation().replace("/", "_").replace(" ", "+")
-                image.save(f"{current_outdir}/{encoded}.png")
-                current_files_in_folder += 1
+        return image, position

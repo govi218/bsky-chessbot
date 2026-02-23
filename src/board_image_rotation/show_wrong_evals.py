@@ -1,21 +1,17 @@
-import torch
 import matplotlib.pyplot as plt
+import torch
 
 from src.board_image_rotation import dataset
 from src.board_image_rotation.model import ImageRotation
 
 
-def show_wrong_image_rotations(model_path, game: str):
-
-    max_data = None
-    data_root_dir = f"resources/board_position_images/{game}"
-
-    board_image_set = dataset.BoardImageDataset(
-        root_dir=data_root_dir,
-        augment_ratio=0.8,
-        affine_augment_ratio=0.8,
-        max=max_data,
-    )
+def show_wrong_image_rotations(
+    model_path,
+    game: str,
+    eval_size: int = 1000,
+    seed: int = 42,
+):
+    test_set = dataset.generate_fixed_test_set(game=game, size=eval_size, seed=seed)
 
     model = ImageRotation()
     model.load_state_dict(torch.load(model_path, map_location=torch.device("cpu")))
@@ -23,8 +19,7 @@ def show_wrong_image_rotations(model_path, game: str):
 
     correct = 0
     total = 0
-    for img, target in board_image_set:
-
+    for img, target in test_set:
         total += 1
 
         with torch.no_grad():

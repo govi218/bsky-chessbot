@@ -1,15 +1,14 @@
-import torch
-import time
 import random
+
 import matplotlib.pyplot as plt
-from torch.utils.data import Dataset
+import torch
+from torch.utils.data import IterableDataset, TensorDataset
 from torchvision.transforms import v2
 from torchvision.utils import draw_bounding_boxes
-from PIL import Image
-from pathlib import Path
 
-from src.common import to_rgb_tensor, MinMaxMeanNormalization, AddGaussianNoise, glob_all_image_files_recursively
+from src.common import to_rgb_tensor, MinMaxMeanNormalization, AddGaussianNoise
 from src import consts
+from src.bounding_box.generate_chessboards_bbox import BboxGenerator
 
 
 def box_to_mask(box: torch.Tensor):
@@ -47,95 +46,90 @@ augment_transforms = torch.nn.Sequential(
     v2.RandomEqualize(p=0.8),
 )
 
-# TODO It could make sense to add affine augmentations, but it seems to work well, even without.
-# And I would need to add the affine transforms to the target mask as well.
 
-
-class BoardBBoxDataset(Dataset):
-
+class GenerativeBboxDataset(IterableDataset):
     def __init__(
-        self, root_dir, augment_ratio=0.5, max=None, device=torch.device("cpu")
+        self,
+        game: str,
+        augment_ratio: float = 0.5,
     ):
-
-        self.device = device
+        self.generator = BboxGenerator(game)
         self.augment_ratio = augment_ratio
 
-        root_dir = Path(root_dir)
-        assert root_dir.is_dir(), f"With root_dir = {root_dir}"
-        self.image_files = glob_all_image_files_recursively(root_dir)
-        random.shuffle(self.image_files)
-        if max is not None:
-            self.image_files = self.image_files[0 : min(len(self.image_files), max)]
+    def __iter__(self):
+        while True:
+            image, (center_x, center_y, width, height) = self.generator.generate_one()
+            input_img = to_rgb_tensor(image)
 
-        print(f"Found {len(self.image_files)} images")
+            x1 = center_x - width / 2
+            y1 = center_y - height / 2
+            x2 = center_x + width / 2
+            y2 = center_y + height / 2
+            box = torch.tensor([x1, y1, x2, y2])
 
-    def __len__(self):
-        return len(self.image_files)
+            do_augment = self.augment_ratio > random.uniform(0, 1)
 
-    def __getitem__(self, idx):
-        file_path = self.image_files[idx]
+            while True:
+                if do_augment:
+                    input_img = augment_transforms(input_img)
+                if input_img.isnan().any():
+                    print("WARNING: Found nan after augmentation. Trying again.")
+                    continue
+                input_img = default_transforms(input_img)
+                if input_img.isnan().any():
+                    print("WARNING: Found nan after default transform. Trying again.")
+                    continue
+                break
 
-        try:
-            img = Image.open(file_path)
-        except RuntimeError:
-            print("Error:", file_path)
-            raise
-        input_img = to_rgb_tensor(img).to(self.device)
+            yield input_img, box, box_to_mask(box)
 
-        assert input_img.shape[1] == consts.BBOX_IMAGE_SIZE
-        assert input_img.shape[2] == consts.BBOX_IMAGE_SIZE
 
-        center_x, center_y, width, height = [int(x) for x in file_path.stem.split("_")]
+def generate_fixed_test_set(
+    game: str,
+    size: int = 500,
+    seed: int = 42,
+) -> TensorDataset:
+    rng_state = random.getstate()
+    random.seed(seed)
+
+    generator = BboxGenerator(game)
+    images = []
+    boxes = []
+    masks = []
+    for _ in range(size):
+        image, (center_x, center_y, width, height) = generator.generate_one()
+        input_img = to_rgb_tensor(image)
+        input_img = default_transforms(input_img)
 
         x1 = center_x - width / 2
         y1 = center_y - height / 2
         x2 = center_x + width / 2
         y2 = center_y + height / 2
-
         box = torch.tensor([x1, y1, x2, y2])
 
-        do_augment = self.augment_ratio > random.uniform(0, 1)
+        images.append(input_img)
+        boxes.append(box)
+        masks.append(box_to_mask(box))
 
-        while True:
+    random.setstate(rng_state)
+    return TensorDataset(torch.stack(images), torch.stack(boxes), torch.stack(masks))
 
-            if do_augment:
-                input_img = augment_transforms(input_img)
 
-            if input_img.isnan().any():
-                print("WARNING: Found nan after augmentation. Trying again.")
-                continue
+def test_data_set(game: str, size: int = 1000):
+    ds = GenerativeBboxDataset(game=game, augment_ratio=0.5)
 
-            input_img = default_transforms(input_img)
-
-            if input_img.isnan().any():
-                print(
-                    f"WARNING: Found nan after default transform (do_augment = {do_augment}). Trying again."
-                )
-                continue
+    for i, (img, target_box, target_mask) in enumerate(ds):
+        if i >= size:
             break
-
-        return (input_img, box, box_to_mask(box))
-
-
-def test_data_set(game: str):
-
-    c = BoardBBoxDataset(
-        root_dir=f"resources/board_bbox_images/{game}/boards_bbox",
-        augment_ratio=0.5,
-        max=1000,
-    )
-
-    for i in range(0, len(c)):
-        img, target_box, target_mask = c[i]
-
         assert not img.isnan().any()
 
-        img *= 255.0
-        img += 128.0
-        img = img.to(torch.uint8)
-        img = draw_bounding_boxes(img, target_box.unsqueeze(0), width=5, colors="red")
+        vis = img.clone()
+        vis *= 255.0
+        vis += 128.0
+        vis = vis.to(torch.uint8)
+        vis = draw_bounding_boxes(vis, target_box.unsqueeze(0), width=5, colors="red")
 
         fig, (ax1, ax2) = plt.subplots(1, 2)
-        ax1.imshow((img.permute(1, 2, 0) - img.min()) / (img.max() - img.min()))
+        ax1.imshow((vis.permute(1, 2, 0) - vis.min()) / (vis.max() - vis.min()))
         ax2.imshow(target_mask.squeeze(0))
         plt.show()

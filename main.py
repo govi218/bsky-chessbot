@@ -8,19 +8,15 @@ import src.board_orientation.dataset as orientation_data
 import src.board_orientation.show_wrong_evals as orientation_eval
 import src.board_orientation.train as orientation_train
 import src.bounding_box.dataset as bbox_data
-import src.bounding_box.generate_chessboards_bbox as bbox_gen
 import src.bounding_box.train as bbox_train
 import src.existence.dataset as existence_data
-import src.existence.generate_existence as existence_gen
 import src.existence.show_wrong_evals as existence_eval
 import src.existence.train as existence_train
 import src.fen_recognition.dataset as position_data
-import src.fen_recognition.generate_chessboards as position_gen
 import src.fen_recognition.show_wrong_evals as position_eval
 import src.fen_recognition.train as position_train
 
 
-GENERATE = "generate"
 DATASET = "dataset"
 TRAIN = "train"
 EVAL = "eval"
@@ -33,11 +29,9 @@ EXISTENCE = "existence"
 
 
 functions = {
-    (GENERATE, BBOX): bbox_gen.generate_bbox_training_data,
     (DATASET, BBOX): bbox_data.test_data_set,
     (TRAIN, BBOX): bbox_train.train,
 
-    (GENERATE, POSITION): position_gen.generate_position_training_data,
     (DATASET, POSITION): position_data.test_data_set,
     (TRAIN, POSITION): position_train.train,
     (EVAL, POSITION): position_eval.show_wrong_fens,
@@ -50,7 +44,6 @@ functions = {
     (TRAIN, IMAGE_ROTATION): image_rotation_train.train,
     (EVAL, IMAGE_ROTATION): image_rotation_eval.show_wrong_image_rotations,
 
-    (GENERATE, EXISTENCE): existence_gen.generate_existence_training_data,
     (DATASET, EXISTENCE): existence_data.test_data_set,
     (TRAIN, EXISTENCE): existence_train.train,
     (EVAL, EXISTENCE): existence_eval.show_wrong_existence,
@@ -59,7 +52,7 @@ functions = {
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Training/data entrypoint")
-    parser.add_argument("function", choices=[GENERATE, DATASET, TRAIN, EVAL], help="the function to run")
+    parser.add_argument("function", choices=[DATASET, TRAIN, EVAL], help="the function to run")
     parser.add_argument(
         "model",
         nargs="?",
@@ -89,14 +82,6 @@ if __name__ == "__main__":
         kwargs["root_dir"] = args.dir
     if "data_root_dir" in sig.parameters and args.dir is not None:
         kwargs["data_root_dir"] = args.dir
-    if "outdir_root" in sig.parameters and args.dir is not None:
-        kwargs["outdir_root"] = args.dir
-    if "data_with_board_root_dir" in sig.parameters and args.dir is not None:
-        kwargs["data_with_board_root_dir"] = args.dir
-    if "with_board_root_dir" in sig.parameters and args.dir is not None:
-        kwargs["with_board_root_dir"] = args.dir
-    if "board_root_dir" in sig.parameters and args.dir is not None:
-        kwargs["board_root_dir"] = args.dir
     if "pgn_file" in sig.parameters and args.pgn is not None:
         kwargs["pgn_file"] = args.pgn
     if "pgn_file_name" in sig.parameters and args.pgn is not None:

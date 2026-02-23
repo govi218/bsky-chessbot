@@ -1,13 +1,12 @@
 import random
-from pathlib import Path
 
 import matplotlib.pyplot as plt
 import torch
-from PIL import Image
-from torch.utils.data import Dataset
+from torch.utils.data import IterableDataset, TensorDataset
 from torchvision.transforms import v2
 
 from src import common, consts
+from src.fen_recognition.generate_chessboards import BoardGenerator
 from src.games import get_game
 
 
@@ -36,93 +35,85 @@ def get_default_transforms(game: str, tile_size: int = consts.DEFAULT_TILE_SIZE)
     )
 
 
-class BoardPositionDataset(Dataset):
+class GenerativeBoardDataset(IterableDataset):
     def __init__(
         self,
-        root_dir,
         game: str,
         tile_size: int = consts.DEFAULT_TILE_SIZE,
-        augment_ratio=0.5,
-        affine_augment_ratio=0.8,
-        max=None,
-        device=torch.device("cpu"),
+        augment_ratio: float = 0.5,
+        affine_augment_ratio: float = 0.8,
     ):
         self.game = get_game(game)
         self.tile_size = tile_size
-        self.device = device
         self.board_h, self.board_w = consts.board_pixel_size(self.game, tile_size)
+        self.generator = BoardGenerator(game, tile_size)
         self.default_transforms = torch.nn.Sequential(
             v2.ToDtype(torch.float32),
             v2.Resize(size=(self.board_h, self.board_w), interpolation=v2.InterpolationMode.BICUBIC),
             common.MinMaxMeanNormalization(),
         )
-
         self.augments = torch.nn.Sequential(
             v2.RandomApply([affine_transforms], p=affine_augment_ratio),
             v2.RandomApply([augment_transforms], p=augment_ratio),
         )
 
-        root_dir = Path(root_dir)
-        assert root_dir.is_dir(), f"With root_dir = {root_dir}"
-
-        img_list = common.glob_all_image_files_recursively(root_dir)
-
-        self.image_files = []
-        for filename in img_list:
-            notation = common.normalize_position_notation(Path(filename).stem, self.game)
-            if notation is not None:
-                self.image_files.append(filename)
-            else:
-                print("WARNING: Couldn't detect ground truth notation:", filename)
-
-        random.shuffle(self.image_files)
-        if max is not None:
-            self.image_files = self.image_files[0 : min(len(self.image_files), max)]
-
-        print(f"Found {len(self.image_files)} files")
-
-    def __len__(self):
-        return len(self.image_files)
-
-    def __getitem__(self, idx):
-        file_path = self.image_files[idx]
-        notation = common.normalize_position_notation(file_path.stem, self.game)
-        assert notation is not None
-
-        position = common.position_from_notation(notation, self.game)
-        assert position is not None
-
-        try:
-            img = Image.open(file_path)
-        except RuntimeError:
-            print("Error:", file_path)
-            raise
-
-        input_img = common.to_rgb_tensor(img).to(self.device)
-        target = common.position_to_tensor(position).to(self.device)
-
+    def __iter__(self):
         while True:
-            input_img = self.augments(input_img)
-            if input_img.isnan().any():
-                print("WARNING: Found nan after augmentation. Trying again.")
-                continue
+            image, position = self.generator.generate_one()
+            input_img = common.to_rgb_tensor(image)
+            target = common.position_to_tensor(position)
 
-            input_img = self.default_transforms(input_img)
-            if input_img.isnan().any():
-                print("WARNING: Found nan after default transform. Trying again.")
-                continue
+            while True:
+                input_img = self.augments(input_img)
+                if input_img.isnan().any():
+                    print("WARNING: Found nan after augmentation. Trying again.")
+                    continue
+                input_img = self.default_transforms(input_img)
+                if input_img.isnan().any():
+                    print("WARNING: Found nan after default transform. Trying again.")
+                    continue
+                break
+
+            yield input_img, target
+
+
+def generate_fixed_test_set(
+    game: str,
+    size: int = 500,
+    tile_size: int = consts.DEFAULT_TILE_SIZE,
+    seed: int = 42,
+) -> TensorDataset:
+    spec = get_game(game)
+    board_h, board_w = consts.board_pixel_size(spec, tile_size)
+    default_transforms = torch.nn.Sequential(
+        v2.ToDtype(torch.float32),
+        v2.Resize(size=(board_h, board_w), interpolation=v2.InterpolationMode.BICUBIC),
+        common.MinMaxMeanNormalization(),
+    )
+
+    rng_state = random.getstate()
+    random.seed(seed)
+
+    generator = BoardGenerator(game, tile_size)
+    images = []
+    targets = []
+    for _ in range(size):
+        image, position = generator.generate_one()
+        input_img = common.to_rgb_tensor(image)
+        input_img = default_transforms(input_img)
+        images.append(input_img)
+        targets.append(common.position_to_tensor(position))
+
+    random.setstate(rng_state)
+    return TensorDataset(torch.stack(images), torch.stack(targets))
+
+
+def test_data_set(game: str, size: int = 1000):
+    ds = GenerativeBoardDataset(game=game)
+
+    for i, (img, target) in enumerate(ds):
+        if i >= size:
             break
-
-        return (input_img, target)
-
-
-def test_data_set(game: str, root_dir=None, max_data: int = 1000):
-    if root_dir is None:
-        root_dir = f"resources/board_position_images/{get_game(game).key}"
-    d = BoardPositionDataset(root_dir=root_dir, game=game, max=max_data)
-
-    for i in range(0, len(d)):
-        img, target = d[i]
         assert not img.isnan().any()
 
         pos = common.tensor_to_position(target, game=game)

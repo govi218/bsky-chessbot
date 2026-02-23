@@ -1,11 +1,13 @@
-import torch
 import random
+
 import matplotlib.pyplot as plt
-from torch.utils.data import Dataset
+import torch
+from torch.utils.data import IterableDataset, TensorDataset
 from torchvision.transforms import v2
 from PIL import Image
-from pathlib import Path
+
 from src import common, consts
+from src.fen_recognition.generate_chessboards import BoardGenerator
 
 
 default_transforms = torch.nn.Sequential(
@@ -42,84 +44,75 @@ affine_transforms = v2.RandomAffine(
 ROTATIONS = [0, 90, 180, 270]
 
 
-class BoardImageDataset(Dataset):
-
+class GenerativeRotationDataset(IterableDataset):
     def __init__(
         self,
-        root_dir,
-        augment_ratio=0.5,
-        affine_augment_ratio=0.8,
-        max=None,
-        device=torch.device("cpu"),
+        game: str,
+        augment_ratio: float = 0.5,
+        affine_augment_ratio: float = 0.8,
     ):
-
-        self.device = device
+        self.generator = BoardGenerator(game)
         self.augments = torch.nn.Sequential(
             v2.RandomApply([affine_transforms], p=affine_augment_ratio),
             v2.RandomApply([augment_transforms], p=augment_ratio),
         )
 
-        root_dir = Path(root_dir)
-        assert root_dir.is_dir(), f"With root_dir = {root_dir}"
-        
-        self.image_files = common.glob_all_image_files_recursively(root_dir)
-
-        random.shuffle(self.image_files)
-        if max is not None:
-            self.image_files = self.image_files[0 : min(len(self.image_files), max)]
-
-        print(f"Found {len(self.image_files)} files")
-
-    def __len__(self):
-        return len(self.image_files)
-
-    def __getitem__(self, idx):
-        file_path = self.image_files[idx]
-
-        try:
-            img = Image.open(file_path)
-        except RuntimeError:
-            print("Error:", file_path)
-            raise
-
-        target = random.randint(0, len(ROTATIONS) - 1)
-
-        img = img.rotate(ROTATIONS[target], expand=True)
-
-        input_img = common.to_rgb_tensor(img).to(self.device)
-
+    def __iter__(self):
         while True:
-            input_img = self.augments(input_img)
+            image, _ = self.generator.generate_one()
+            target = random.randint(0, len(ROTATIONS) - 1)
+            image = image.rotate(ROTATIONS[target], expand=True)
 
-            if input_img.isnan().any():
-                print("WARNING: Found nan after augmentation. Trying again.")
-                continue
+            input_img = common.to_rgb_tensor(image)
 
-            input_img = default_transforms(input_img)
+            while True:
+                input_img = self.augments(input_img)
+                if input_img.isnan().any():
+                    print("WARNING: Found nan after augmentation. Trying again.")
+                    continue
+                input_img = default_transforms(input_img)
+                if input_img.isnan().any():
+                    print("WARNING: Found nan after default transform. Trying again.")
+                    continue
+                break
 
-            if input_img.isnan().any():
-                print(f"WARNING: Found nan after default transform. Trying again.")
-                continue
+            yield input_img, target
+
+
+def generate_fixed_test_set(
+    game: str,
+    size: int = 500,
+    seed: int = 42,
+) -> TensorDataset:
+    rng_state = random.getstate()
+    random.seed(seed)
+
+    generator = BoardGenerator(game)
+    images = []
+    targets = []
+    for _ in range(size):
+        image, _ = generator.generate_one()
+        target = random.randint(0, len(ROTATIONS) - 1)
+        image = image.rotate(ROTATIONS[target], expand=True)
+        input_img = common.to_rgb_tensor(image)
+        input_img = default_transforms(input_img)
+        images.append(input_img)
+        targets.append(target)
+
+    random.setstate(rng_state)
+    return TensorDataset(torch.stack(images), torch.tensor(targets))
+
+
+def test_data_set(game: str, size: int = 1000):
+    ds = GenerativeRotationDataset(game=game)
+
+    for i, (img, target) in enumerate(ds):
+        if i >= size:
             break
-
-        return (input_img, target)
-
-
-def test_data_set(game: str):
-    root_dir = f"resources/board_position_images/{game}/generated"
-
-    dataset = BoardImageDataset(root_dir, max=1000)
-
-    for i in range(0, len(dataset)):
-        img, target = dataset[i]
-
         assert not img.isnan().any()
         print(target, ROTATIONS[target])
 
-        # fig, ax1 = plt.subplots(1, 1, figsize=(16, 8))
-
         img = (img.permute(1, 2, 0) - img.min()) / (img.max() - img.min())
-
         plt.imshow(img)
         plt.axis("off")
         plt.show()

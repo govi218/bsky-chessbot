@@ -10,20 +10,14 @@ from src.games import get_game
 def show_wrong_fens(
     model_path,
     game: str,
-    data_root_dir=None,
+    eval_size: int = 1000,
     tile_size: int = consts.DEFAULT_TILE_SIZE,
+    seed: int = 42,
 ):
     spec = get_game(game)
-    if data_root_dir is None:
-        data_root_dir = f"resources/board_position_images/{spec.key}"
 
-    board_set = dataset.BoardPositionDataset(
-        root_dir=data_root_dir,
-        game=spec,
-        tile_size=tile_size,
-        augment_ratio=0.0,
-        affine_augment_ratio=0.0,
-        max=None,
+    test_set = dataset.generate_fixed_test_set(
+        game=spec.key, size=eval_size, tile_size=tile_size, seed=seed,
     )
 
     model = BoardRec(game=spec.key, tile_size=tile_size)
@@ -32,7 +26,7 @@ def show_wrong_fens(
 
     correct = 0
     total = 0
-    for img, target in board_set:
+    for img, target in test_set:
         total += 1
 
         with torch.no_grad():

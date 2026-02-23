@@ -250,6 +250,7 @@ version = "0.0.1"
 source = { editable = "." }
 dependencies = [
     { name = "cairosvg" },
+    { name = "gdown" },
     { name = "matplotlib" },
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11' or (extra == 'extra-20-chess-diagram-to-fen-cpu' and extra == 'extra-20-chess-diagram-to-fen-cuda') or (extra == 'extra-20-chess-diagram-to-fen-cpu' and extra == 'extra-20-chess-diagram-to-fen-rocm') or (extra == 'extra-20-chess-diagram-to-fen-cuda' and extra == 'extra-20-chess-diagram-to-fen-rocm')" },
     { name = "numpy", version = "2.4.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11' or (extra == 'extra-20-chess-diagram-to-fen-cpu' and extra == 'extra-20-chess-diagram-to-fen-cuda') or (extra == 'extra-20-chess-diagram-to-fen-cpu' and extra == 'extra-20-chess-diagram-to-fen-rocm') or (extra == 'extra-20-chess-diagram-to-fen-cuda' and extra == 'extra-20-chess-diagram-to-fen-rocm')" },
@@ -277,14 +278,11 @@ rocm = [
     { name = "torch", version = "2.9.1+rocm6.4", source = { registry = "https://download.pytorch.org/whl/rocm6.4" } },
     { name = "torchvision", version = "0.24.1+rocm6.4", source = { registry = "https://download.pytorch.org/whl/rocm6.4" } },
 ]
-train-data = [
-    { name = "gdown" },
-]
 
 [package.metadata]
 requires-dist = [
     { name = "cairosvg" },
-    { name = "gdown", marker = "extra == 'train-data'" },
+    { name = "gdown" },
     { name = "matplotlib" },
     { name = "numpy" },
     { name = "pillow" },
@@ -300,7 +298,7 @@ requires-dist = [
     { name = "torchvision", marker = "extra == 'rocm'", index = "https://download.pytorch.org/whl/rocm6.4", conflict = { package = "chess-diagram-to-fen", extra = "rocm" } },
     { name = "tqdm" },
 ]
-provides-extras = ["cpu", "cuda", "rocm", "train-data"]
+provides-extras = ["cpu", "cuda", "rocm"]
 
 [[package]]
 name = "colorama"

@@ -24,7 +24,8 @@ dependencies = [
   "tqdm",
   "pyffish",
   "cairosvg",
-  "pyfastnoiselite"
+  "pyfastnoiselite",
+  "gdown"
 ]
 
 [project.optional-dependencies]
@@ -35,7 +36,6 @@ dependencies = [
 cpu  = ["torch", "torchvision"]
 cuda = ["torch", "torchvision"]
 rocm = ["torch", "torchvision", "pytorch-triton-rocm"]
-train-data = ["gdown"]
 
 [project.urls]
 Homepage = "https://github.com/tsoj/Chess_diagram_to_FEN"

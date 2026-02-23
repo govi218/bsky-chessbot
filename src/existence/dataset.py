@@ -1,14 +1,14 @@
-import torch
-import time
 import random
+
 import matplotlib.pyplot as plt
-from torch.utils.data import Dataset
+import torch
+from torch.utils.data import IterableDataset, TensorDataset
 from torchvision.transforms import v2
-from PIL import Image
-from pathlib import Path
 
 from src.common import to_rgb_tensor, MinMaxMeanNormalization, AddGaussianNoise
-from src import consts, common
+from src import consts
+from src.bounding_box.generate_chessboards_bbox import BboxGenerator
+from src.existence.generate_existence import NoboardGenerator
 
 
 default_transforms = torch.nn.Sequential(
@@ -42,103 +42,88 @@ affine_transforms = v2.RandomAffine(
     degrees=1.5, translate=(0.01, 0.01), scale=(0.99, 1.01), shear=1.5
 )
 
-class ExistenceDataset(Dataset):
 
+class GenerativeExistenceDataset(IterableDataset):
     def __init__(
         self,
-        with_board_root_dir,
-        no_board_root_dir,
-        augment_ratio=0.5,
-        affine_augment_ratio=0.8,
-        max=None,
-        device=torch.device("cpu"),
+        game: str,
+        augment_ratio: float = 0.5,
+        affine_augment_ratio: float = 0.8,
     ):
-
-        self.device = device
-        self.augment_ratio = augment_ratio
-
+        self.bbox_generator = BboxGenerator(game)
+        self.noboard_generator = NoboardGenerator()
         self.augments = torch.nn.Sequential(
             v2.RandomApply([affine_transforms], p=affine_augment_ratio),
             v2.RandomApply([augment_transforms], p=augment_ratio),
         )
 
-        self.image_files = []
-
-        for dir, target in [(with_board_root_dir, 1.0), (no_board_root_dir, 0.0)]:
-
-            dir = Path(dir)
-            assert dir.is_dir(), f"With root_dir = {dir}"
-            files = common.glob_all_image_files_recursively(dir)
-            random.shuffle(files)
-
-            assert len(files) > 0
-            if len(self.image_files) != 0:
-                size_per_dir = min(len(self.image_files), len(files))
-                self.image_files = self.image_files[0:size_per_dir]
-                files = files[0:size_per_dir]
-
-            self.image_files.extend([(file, target) for file in files])
-
-        random.shuffle(self.image_files)
-
-        if max is not None:
-            self.image_files = self.image_files[0 : min(len(self.image_files), max)]
-
-        print(f"Found {len(self.image_files)} images")
-
-    def __len__(self):
-        return len(self.image_files)
-
-    def __getitem__(self, idx):
-        file_path, target = self.image_files[idx]
-
-        try:
-            img = Image.open(file_path)
-        except RuntimeError:
-            print("Error:", file_path)
-            raise
-        input_img = to_rgb_tensor(img).to(self.device)
-
-        assert input_img.shape[1] == consts.BBOX_IMAGE_SIZE
-        assert input_img.shape[2] == consts.BBOX_IMAGE_SIZE
-
+    def __iter__(self):
         while True:
+            if random.random() < 0.5:
+                image, _ = self.bbox_generator.generate_one()
+                target = 1.0
+            else:
+                image = self.noboard_generator.generate_one()
+                target = 0.0
 
-            input_img = self.augments(input_img)
+            input_img = to_rgb_tensor(image)
 
-            if input_img.isnan().any():
-                print("WARNING: Found nan after augmentation. Trying again.")
-                continue
+            while True:
+                input_img = self.augments(input_img)
+                if input_img.isnan().any():
+                    print("WARNING: Found nan after augmentation. Trying again.")
+                    continue
+                input_img = default_transforms(input_img)
+                if input_img.isnan().any():
+                    print("WARNING: Found nan after default transform. Trying again.")
+                    continue
+                break
 
-            input_img = default_transforms(input_img)
+            yield input_img, torch.tensor(target).unsqueeze(0)
 
-            if input_img.isnan().any():
-                print(f"WARNING: Found nan after default transform. Trying again.")
-                continue
+
+def generate_fixed_test_set(
+    game: str,
+    size: int = 500,
+    seed: int = 42,
+) -> TensorDataset:
+    rng_state = random.getstate()
+    random.seed(seed)
+
+    bbox_gen = BboxGenerator(game)
+    noboard_gen = NoboardGenerator()
+    images = []
+    targets = []
+    for i in range(size):
+        if i % 2 == 0:
+            image, _ = bbox_gen.generate_one()
+            target = 1.0
+        else:
+            image = noboard_gen.generate_one()
+            target = 0.0
+
+        input_img = to_rgb_tensor(image)
+        input_img = default_transforms(input_img)
+        images.append(input_img)
+        targets.append(torch.tensor(target).unsqueeze(0))
+
+    random.setstate(rng_state)
+    return TensorDataset(torch.stack(images), torch.stack(targets))
+
+
+def test_data_set(game: str, size: int = 1000):
+    ds = GenerativeExistenceDataset(game=game, augment_ratio=0.5)
+
+    for i, (img, target) in enumerate(ds):
+        if i >= size:
             break
-
-        return (input_img, torch.tensor(target).unsqueeze(0))
-
-
-def test_data_set(game: str):
-
-    c = ExistenceDataset(
-        with_board_root_dir=f"resources/board_bbox_images/{game}/boards_bbox",
-        no_board_root_dir=f"resources/board_bbox_images/{game}/no_boards",
-        augment_ratio=0.5,
-        max=1000,
-    )
-
-    for i in range(0, len(c)):
-        img, target = c[i]
-
         assert not img.isnan().any()
-
         print(target)
 
-        img *= 255.0
-        img += 128.0
-        img = img.to(torch.uint8)
+        vis = img.clone()
+        vis *= 255.0
+        vis += 128.0
+        vis = vis.to(torch.uint8)
 
-        plt.imshow((img.permute(1, 2, 0) - img.min()) / (img.max() - img.min()))
+        plt.imshow((vis.permute(1, 2, 0) - vis.min()) / (vis.max() - vis.min()))
         plt.show()
