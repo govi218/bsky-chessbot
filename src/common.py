@@ -109,6 +109,66 @@ def _split_piece_placement_rows(piece_placement: str) -> list[str]:
     return rows
 
 
+def _parse_row_to_grid(row: str, game: str | GameSpec) -> list[str | None]:
+    spec = get_game(game)
+
+    for c in row:
+        if c.isdigit() or c in spec.piece_set:
+            continue
+        raise ValueError(f"Invalid piece symbol '{c}' for game '{spec.key}'")
+
+    cache: dict[tuple[int, int], list[str | None] | None] = {}
+
+    def parse_from(i: int, col: int) -> list[str | None] | None:
+        key = (i, col)
+        if key in cache:
+            return cache[key]
+
+        if col > spec.board_cols:
+            cache[key] = None
+            return None
+
+        if i == len(row):
+            result = [] if col == spec.board_cols else None
+            cache[key] = result
+            return result
+
+        c = row[i]
+        if c in spec.piece_set:
+            tail = parse_from(i + 1, col + 1)
+            result = None if tail is None else [c] + tail
+            cache[key] = result
+            return result
+
+        if c == "0":
+            raise ValueError(f"Invalid empty-square count in row: {row}")
+
+        j = i
+        while j < len(row) and row[j].isdigit():
+            j += 1
+
+        remaining_cols = spec.board_cols - col
+        result = None
+        for k in range(1, j - i + 1):
+            count = int(row[i : i + k])
+            if count <= 0 or count > remaining_cols:
+                continue
+            tail = parse_from(i + k, col + count)
+            if tail is not None:
+                result = ([None] * count) + tail
+                break
+
+        cache[key] = result
+        return result
+
+    parsed = parse_from(0, 0)
+    if parsed is None:
+        raise ValueError(
+            f"Expected {spec.board_cols} columns per row for {spec.key}, found invalid row: {row}"
+        )
+    return parsed
+
+
 def parse_piece_placement(piece_placement: str, game: str | GameSpec) -> list[str | None]:
     spec = get_game(game)
     rows = _split_piece_placement_rows(piece_placement)
@@ -119,31 +179,7 @@ def parse_piece_placement(piece_placement: str, game: str | GameSpec) -> list[st
 
     grid: list[str | None] = []
     for row in rows:
-        col = 0
-        i = 0
-        while i < len(row):
-            c = row[i]
-            if c.isdigit():
-                j = i
-                while j < len(row) and row[j].isdigit():
-                    j += 1
-                count = int(row[i:j])
-                if count <= 0:
-                    raise ValueError(f"Invalid empty-square count in row: {row}")
-                grid.extend([None] * count)
-                col += count
-                i = j
-                continue
-            if c not in spec.piece_set:
-                raise ValueError(f"Invalid piece symbol '{c}' for game '{spec.key}'")
-            grid.append(c)
-            col += 1
-            i += 1
-
-        if col != spec.board_cols:
-            raise ValueError(
-                f"Expected {spec.board_cols} columns per row for {spec.key}, found {col} in row: {row}"
-            )
+        grid.extend(_parse_row_to_grid(row, spec))
 
     return grid
 
@@ -306,31 +342,43 @@ def get_image(position_or_notation: Position | str, width: int, height: int):
     else:
         raise ValueError("Pass a Position object to get_image()")
 
+    # Lazy import to avoid circular dependency (generate_chessboards imports common)
+    from src.fen_recognition.generate_chessboards import (
+        _load_piece_images,
+        _symbol_to_asset_key,
+    )
+
     spec = get_game(position.game)
     grid = parse_piece_placement(position.piece_placement, spec)
 
-    image = Image.new("RGBA", (width, height), (245, 245, 245, 255))
-    draw = ImageDraw.Draw(image)
+    tile_size = min(width // spec.board_cols, height // spec.board_rows)
+    board_w = tile_size * spec.board_cols
+    board_h = tile_size * spec.board_rows
 
-    square_w = width / spec.board_cols
-    square_h = height / spec.board_rows
     dark = (181, 136, 99, 255)
     light = (240, 217, 181, 255)
 
-    idx = 0
+    board_image = Image.new("RGBA", (board_w, board_h), (245, 245, 245, 255))
+    draw = ImageDraw.Draw(board_image)
     for row in range(spec.board_rows):
         for col in range(spec.board_cols):
-            x1 = int(col * square_w)
-            y1 = int(row * square_h)
-            x2 = int((col + 1) * square_w)
-            y2 = int((row + 1) * square_h)
-            draw.rectangle([x1, y1, x2, y2], fill=(dark if (row + col) % 2 else light))
+            x1 = col * tile_size
+            y1 = row * tile_size
+            draw.rectangle(
+                [x1, y1, x1 + tile_size, y1 + tile_size],
+                fill=(dark if (row + col) % 2 else light),
+            )
 
-            piece = grid[idx]
-            idx += 1
-            if piece is not None:
-                draw.text((x1 + int(square_w * 0.35), y1 + int(square_h * 0.25)), piece, fill=(0, 0, 0, 255))
+    piece_images = _load_piece_images(position.game, tile_size)[0]
+    for idx, piece in enumerate(grid):
+        if piece is None:
+            continue
+        row, col = divmod(idx, spec.board_cols)
+        piece_img = piece_images[_symbol_to_asset_key(piece)]
+        board_image.paste(piece_img, (col * tile_size, row * tile_size), piece_img)
 
+    image = Image.new("RGBA", (width, height), (245, 245, 245, 255))
+    image.paste(board_image, ((width - board_w) // 2, (height - board_h) // 2))
     return image
 
 

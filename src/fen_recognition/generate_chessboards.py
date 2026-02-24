@@ -1,4 +1,5 @@
 import random
+from functools import lru_cache
 from io import BytesIO
 from pathlib import Path
 
@@ -179,6 +180,7 @@ def _symbol_to_asset_key(symbol: str) -> str:
     return ("w" if symbol.isupper() else "b") + symbol.lower()
 
 
+@lru_cache(maxsize=None)
 def _load_piece_images(game: str, tile_size: int) -> list[dict[str, Image.Image]]:
     spec = get_game(game)
     config = get_render_config(spec)
