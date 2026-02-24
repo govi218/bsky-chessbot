@@ -226,16 +226,10 @@ def flip_color_tensor(tensor: torch.Tensor, game: str | GameSpec) -> torch.Tenso
             f"Expected tensor shape {expected_shape} for {spec.key}, found {list(tensor.shape)}"
         )
 
-    flipped = torch.zeros_like(tensor)
     piece_to_idx = {p: i for i, p in enumerate(spec.piece_symbols)}
-
-    for sq in range(spec.num_squares):
-        for i, symbol in enumerate(spec.piece_symbols):
-            other = spec.color_swap_map[symbol]
-            flipped[sq, piece_to_idx[other]] = tensor[sq, i]
-        flipped[sq, len(spec.piece_symbols)] = tensor[sq, len(spec.piece_symbols)]
-
-    return flipped
+    n = len(spec.piece_symbols)
+    perm = [piece_to_idx[spec.color_swap_map[s]] for s in spec.piece_symbols] + [n]
+    return tensor[:, perm]
 
 
 def rotate_tensor_180(tensor: torch.Tensor, game: str | GameSpec) -> torch.Tensor:

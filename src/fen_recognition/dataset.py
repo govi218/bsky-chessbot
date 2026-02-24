@@ -12,7 +12,7 @@ from src.games import get_game
 
 augment_transforms = torch.nn.Sequential(
     v2.RandomApply([common.AddGaussianNoise(std=0.1, scale_to_input_range=True)], p=0.4),
-    v2.RandomApply([v2.ElasticTransform(alpha=30.0), v2.ElasticTransform(alpha=40.0)], p=0.4),
+    v2.RandomApply([v2.RandomChoice([v2.ElasticTransform(alpha=30.0), v2.ElasticTransform(alpha=40.0)])], p=0.4),
     v2.RandomGrayscale(p=0.4),
     v2.RandomPosterize(bits=2, p=0.2),
     v2.RandomApply([v2.ColorJitter(brightness=0.9, contrast=(0.1, 1.5), hue=0.3)], p=0.3),

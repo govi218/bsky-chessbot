@@ -1,5 +1,6 @@
 import datetime
 import os
+import random
 
 import matplotlib.pyplot as plt
 import torch
@@ -52,7 +53,7 @@ def train(
     batch_size=8,
     max_lr=0.001,
     lr_schedule_pct_start=0.3,
-    test_set_size=500,
+    test_set_size=2000,
     checkpoint=None,
     tile_size: int = consts.DEFAULT_TILE_SIZE,
 ):
@@ -74,7 +75,13 @@ def train(
     )
     test_set = dataset.generate_fixed_test_set(game=spec.key, size=test_set_size, tile_size=tile_size)
 
-    train_loader = torch.utils.data.DataLoader(train_set, batch_size=batch_size, drop_last=True)
+    def _worker_init_fn(worker_id):
+        random.seed(torch.initial_seed() % 2**32)
+
+    train_loader = torch.utils.data.DataLoader(
+        train_set, batch_size=batch_size, drop_last=True,
+        num_workers=8, worker_init_fn=_worker_init_fn, persistent_workers=True,
+    )
     test_loader = torch.utils.data.DataLoader(test_set, batch_size=batch_size, shuffle=False, drop_last=True)
 
     model = BoardRec(game=spec.key, tile_size=tile_size)
