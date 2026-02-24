@@ -7,10 +7,15 @@ from src.games import get_game
 from torchvision import models
 
 
+REGNET_FC_IN_FEATURES = 672
+TILE_EMBED_DIM = 512
+FULL_EMBED_DIM = 512
+
+
 def get_tile_model():
     result = models.regnet_x_800mf(weights=models.RegNet_X_800MF_Weights.IMAGENET1K_V2)
     result.fc = nn.Sequential(
-        torch.nn.LazyLinear(out_features=512),
+        nn.Linear(REGNET_FC_IN_FEATURES, TILE_EMBED_DIM),
         nn.ReLU(),
     )
     return result
@@ -19,24 +24,14 @@ def get_tile_model():
 def get_full_img_model():
     result = models.regnet_x_800mf(weights=models.RegNet_X_800MF_Weights.IMAGENET1K_V2)
     result.fc = nn.Sequential(
-        torch.nn.LazyLinear(out_features=512),
+        nn.Linear(REGNET_FC_IN_FEATURES, FULL_EMBED_DIM),
         nn.ReLU(),
     )
     return result
 
 
-def get_dense_model(out_features: int):
-    return nn.Sequential(
-        torch.nn.LazyLinear(out_features=768),
-        nn.ReLU(),
-        torch.nn.LazyLinear(out_features=512),
-        nn.ReLU(),
-        torch.nn.LazyLinear(out_features=out_features),
-    )
-
-
 class BoardRec(nn.Module):
-    def __init__(self, game: str, tile_size: int = consts.DEFAULT_TILE_SIZE):
+    def __init__(self, game: str, tile_size: int = consts.DEFAULT_TILE_SIZE, dropout: float = 0.1):
         super().__init__()
         self.game = get_game(game)
         self.tile_size = tile_size
@@ -46,7 +41,45 @@ class BoardRec(nn.Module):
 
         self.tile = get_tile_model()
         self.full = get_full_img_model()
-        self.dense = get_dense_model(self.out_channels)
+
+        # Positional embeddings added to tile features before concatenation
+        self.tile_pos_embed = nn.Parameter(torch.zeros(1, self.num_squares, TILE_EMBED_DIM))
+        nn.init.trunc_normal_(self.tile_pos_embed, std=0.02)
+
+        # Projection from concatenated features to attention dimension
+        self.embed_dim = 512
+        self.pre_attn_dense = nn.Sequential(
+            nn.Linear(TILE_EMBED_DIM + FULL_EMBED_DIM, self.embed_dim),
+            nn.ReLU(),
+        )
+
+        # Transformer block: Attention → Add&Norm → FFN → Add&Norm
+        self.attention = nn.MultiheadAttention(
+            embed_dim=self.embed_dim,
+            num_heads=8,
+            dropout=dropout,
+            batch_first=True,
+        )
+        self.attn_norm = nn.LayerNorm(self.embed_dim)
+        self.ffn = nn.Sequential(
+            nn.Linear(self.embed_dim, self.embed_dim * 4),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(self.embed_dim * 4, self.embed_dim),
+            nn.Dropout(dropout),
+        )
+        self.ffn_norm = nn.LayerNorm(self.embed_dim)
+
+        # Classification head
+        self.dense = nn.Sequential(
+            nn.Linear(self.embed_dim, 768),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(768, 512),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(512, self.out_channels),
+        )
 
     def forward(self, img):
         batch_size, ch, h, w = img.shape
@@ -70,11 +103,27 @@ class BoardRec(nn.Module):
         x = self.tile(x)
         x = x.reshape(batch_size, self.num_squares, -1)
 
+        # Add positional embeddings to tile features so each square has a unique identity
+        x = x + self.tile_pos_embed
+
         z = self.full(img)
         z = z.reshape(batch_size, 1, -1)
         z = z.expand(-1, self.num_squares, -1)
 
+        # Concatenate position-aware tile features with global image features
         x = torch.cat((x, z), dim=-1)
+
+        # Project to attention dimension
+        x = self.pre_attn_dense(x)
+
+        # Transformer block
+        attn_out, _ = self.attention(x, x, x)
+        x = self.attn_norm(x + attn_out)
+
+        ffn_out = self.ffn(x)
+        x = self.ffn_norm(x + ffn_out)
+
+        # Per-square classification
         x = x.reshape(batch_size * self.num_squares, -1)
         x = self.dense(x)
         x = x.reshape(batch_size, self.num_squares, self.out_channels)
@@ -83,4 +132,4 @@ class BoardRec(nn.Module):
 
 if __name__ == "__main__":
     model = BoardRec(game="xiangqi")
-    print(torch.cuda.is_available())
+    print("CUDA Available:", torch.cuda.is_available())
