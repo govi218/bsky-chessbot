@@ -6,6 +6,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torchvision
+from tqdm.auto import tqdm
 
 from src.bounding_box import dataset
 from src.bounding_box.model import BoardBBox
@@ -75,6 +76,7 @@ def train(
     best_box_iou = -1.0
     best_model = None
     num_steps = 0
+    progress = tqdm(total=total_steps, desc="Training", dynamic_ncols=True, leave=True)
 
     for img, target_box, target_mask in train_loader:
         img = img.to(device)
@@ -89,9 +91,14 @@ def train(
         scheduler.step()
 
         num_steps += 1
+        progress.update(1)
+        progress.set_postfix(
+            loss=f"{loss.item():.4f}",
+            lr=f"{optimizer.param_groups[0]['lr']:.5f}",
+        )
 
         if num_steps % LOSS_REPORT_FREQ == 0:
-            print(
+            tqdm.write(
                 f"[{num_steps}/{total_steps}] "
                 f"loss: {loss.item():.4f}, "
                 f"lr: {optimizer.param_groups[0]['lr']:.5f}"
@@ -100,15 +107,16 @@ def train(
         if num_steps % TEST_ACC_FREQ == 0 or num_steps >= total_steps:
             test_box_iou = get_box_iou(test_loader, model)
             test_box_iou_list.append(test_box_iou)
-            print(f"Num steps: {num_steps}, Test IOU: {test_box_iou_list[-1]:.3f}")
+            tqdm.write(f"Num steps: {num_steps}, Test IOU: {test_box_iou_list[-1]:.3f}")
 
             if test_box_iou > best_box_iou:
                 best_box_iou = test_box_iou
                 best_model = model.state_dict()
-                print(f"Best model updated: Test IOU: {best_box_iou:.3f}")
+                tqdm.write(f"Best model updated: Test IOU: {best_box_iou:.3f}")
 
         if num_steps >= total_steps:
             break
+    progress.close()
 
     os.makedirs(outdir, exist_ok=True)
     file_name = f"{outdir}/best_model_bbox_{game}_{best_box_iou:.3f}_{start_time_string}.pth"

@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import matplotlib.pyplot as plt
+from tqdm.auto import tqdm
 
 from src.board_orientation import dataset
 from src.board_orientation.model import OrientationModel
@@ -92,6 +93,7 @@ def train(
     best_acc = -1.0
     best_model = None
     num_steps = 0
+    progress = tqdm(total=total_steps, desc="Training", dynamic_ncols=True, leave=True)
 
     while num_steps < total_steps:
         running_loss = 0.0
@@ -110,11 +112,16 @@ def train(
             scheduler.step()
 
             num_steps += 1
+            progress.update(1)
+            progress.set_postfix(
+                loss=f"{loss.item():.4f}",
+                lr=f"{optimizer.param_groups[0]['lr']:.5f}",
+            )
 
             running_loss += loss.item()
 
             if (i + 1) % LOSS_REPORT_FREQ == 0:
-                print(
+                tqdm.write(
                     f"[{num_steps}/{total_steps}, {i + 1:5d}] "
                     f"loss: {running_loss / LOSS_REPORT_FREQ:.4f}, "
                     f"lr: {optimizer.param_groups[0]['lr']:.5f}"
@@ -127,7 +134,7 @@ def train(
                 )
                 test_loss_list.append(test_loss)
                 test_acc_list.append(test_acc)
-                print(
+                tqdm.write(
                     f"Num steps: {num_steps}, "
                     f"Test Loss: {test_loss_list[-1]:.4f}, "
                     f"Test Acc: {test_acc_list[-1]:.3f}"
@@ -136,10 +143,11 @@ def train(
                 if test_acc > best_acc:
                     best_acc = test_acc
                     best_model = model.state_dict()
-                    print(f"Best model updated: Test Acc: {best_acc:.3f}")
+                    tqdm.write(f"Best model updated: Test Acc: {best_acc:.3f}")
 
             if num_steps >= total_steps:
                 break
+    progress.close()
 
     os.makedirs(outdir, exist_ok=True)
     file_name = f"{outdir}/best_model_orientation_{game}_{best_acc:.3f}_{start_time_string}.pth"

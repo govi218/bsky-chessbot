@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from tqdm.auto import tqdm
 
 from src import common, consts
 from src.fen_recognition import dataset
@@ -104,6 +105,7 @@ def train(
     best_acc = -1.0
     best_model = None
     num_steps = 0
+    progress = tqdm(total=total_steps, desc="Training", dynamic_ncols=True, leave=True)
 
     for img, target in train_loader:
         img = img.to(device)
@@ -118,9 +120,14 @@ def train(
         scheduler.step()
 
         num_steps += 1
+        progress.update(1)
+        progress.set_postfix(
+            loss=f"{loss.item():.4f}",
+            lr=f"{optimizer.param_groups[0]['lr']:.5f}",
+        )
 
         if num_steps % LOSS_REPORT_FREQ == 0:
-            print(
+            tqdm.write(
                 f"[{num_steps}/{total_steps}] "
                 f"loss: {loss.item():.4f}, "
                 f"lr: {optimizer.param_groups[0]['lr']:.5f}"
@@ -130,7 +137,7 @@ def train(
             test_acc, test_loss = get_accuracy_and_loss(test_loader, model, criterion, game=spec.key)
             test_loss_list.append(test_loss)
             test_acc_list.append(test_acc)
-            print(
+            tqdm.write(
                 f"Num steps: {num_steps}, "
                 f"Test Loss: {test_loss_list[-1]:.4f}, "
                 f"Test Acc: {test_acc_list[-1]:.3f}"
@@ -139,10 +146,11 @@ def train(
             if test_acc > best_acc:
                 best_acc = test_acc
                 best_model = model.state_dict()
-                print(f"Best model updated: Test Acc: {best_acc:.3f}")
+                tqdm.write(f"Best model updated: Test Acc: {best_acc:.3f}")
 
         if num_steps >= total_steps:
             break
+    progress.close()
 
     os.makedirs(outdir, exist_ok=True)
     file_name = f"{outdir}/best_model_position_{spec.key}_{best_acc:.3f}_{start_time_string}.pth"
