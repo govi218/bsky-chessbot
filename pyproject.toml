@@ -25,7 +25,7 @@ dependencies = [
   "pyffish",
   "cairosvg",
   "pyfastnoiselite",
-  "gdown"
+  "gdown"  
 ]
 
 [project.optional-dependencies]
@@ -33,9 +33,9 @@ dependencies = [
 #   uv sync --extra cpu     → CPU (works everywhere, no GPU required)
 #   uv sync --extra cuda    → CUDA 12.8  (NVIDIA GPUs)
 #   uv sync --extra rocm    → ROCm 6.4   (AMD GPUs, Linux only)
-cpu  = ["torch", "torchvision"]
-cuda = ["torch", "torchvision"]
-rocm = ["torch", "torchvision", "pytorch-triton-rocm"]
+cpu  = ["torch", "torchvision", "timm"]
+cuda = ["torch", "torchvision", "timm"]
+rocm = ["torch", "torchvision", "pytorch-triton-rocm", "timm"]
 
 [project.urls]
 Homepage = "https://github.com/tsoj/Chess_diagram_to_FEN"

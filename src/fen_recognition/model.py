@@ -1,37 +1,50 @@
+import timm
 import torch
 import torch.nn as nn
 
 from src import consts
 from src.games import get_game
 
-from torchvision import models
-
-
-REGNET_FC_IN_FEATURES = 672
 TILE_EMBED_DIM = 512
 FULL_EMBED_DIM = 512
 
 
 def get_tile_model():
-    result = models.regnet_x_800mf(weights=models.RegNet_X_800MF_Weights.IMAGENET1K_V2)
-    result.fc = nn.Sequential(
-        nn.Linear(REGNET_FC_IN_FEATURES, TILE_EMBED_DIM),
+    # wide_resnet28_10: CIFAR-adapted architecture, no aggressive early downsampling
+    # suitable for small ~32x32 tile inputs
+    result = timm.create_model(
+        "convnext_tiny",
+        pretrained=True,
+        num_classes=0,  # remove classification head, use as feature extractor
+    )
+    tile_features = result.num_features
+    return nn.Sequential(
+        result,
+        nn.Linear(tile_features, TILE_EMBED_DIM),
         nn.ReLU(),
     )
-    return result
 
 
 def get_full_img_model():
-    result = models.regnet_x_800mf(weights=models.RegNet_X_800MF_Weights.IMAGENET1K_V2)
-    result.fc = nn.Sequential(
-        nn.Linear(REGNET_FC_IN_FEATURES, FULL_EMBED_DIM),
+    # convnext_tiny: modern convolutional model, good spatial feature extraction
+    # for full board images (~224-384px range)
+    result = timm.create_model(
+        "convnext_tiny",
+        pretrained=True,
+        num_classes=0,  # remove classification head, use as feature extractor
+    )
+    full_features = result.num_features
+    return nn.Sequential(
+        result,
+        nn.Linear(full_features, FULL_EMBED_DIM),
         nn.ReLU(),
     )
-    return result
 
 
 class BoardRec(nn.Module):
-    def __init__(self, game: str, tile_size: int = consts.DEFAULT_TILE_SIZE, dropout: float = 0.1):
+    def __init__(
+        self, game: str, tile_size: int = consts.DEFAULT_TILE_SIZE, dropout: float = 0.1
+    ):
         super().__init__()
         self.game = get_game(game)
         self.tile_size = tile_size
@@ -43,7 +56,9 @@ class BoardRec(nn.Module):
         self.full = get_full_img_model()
 
         # Positional embeddings added to tile features before concatenation
-        self.tile_pos_embed = nn.Parameter(torch.zeros(1, self.num_squares, TILE_EMBED_DIM))
+        self.tile_pos_embed = nn.Parameter(
+            torch.zeros(1, self.num_squares, TILE_EMBED_DIM)
+        )
         nn.init.trunc_normal_(self.tile_pos_embed, std=0.02)
 
         # Projection from concatenated features to attention dimension
