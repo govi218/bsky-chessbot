@@ -4,7 +4,7 @@ import torch
 from src import common
 from src.board_orientation.model import OrientationModel
 from src.games import get_game
-from src.pgn_parser import iter_pgn_games, parse_pgn_game, parse_pgn_tags, parse_variant_tag, replay_moves_to_fens
+from src.pgn_parser import iter_pgn_games, parse_pgn_game, parse_pgn_tags, parse_variant_tag
 
 
 @torch.no_grad()
@@ -29,13 +29,11 @@ def show_wrong_orientation_evals(
         if variant != spec.key:
             continue
 
-        parsed = parse_pgn_game(game_text)
-
-        initial_fen = parsed.tags.get("FEN")
         try:
-            fens = replay_moves_to_fens(parsed.moves, variant=variant, initial_fen=initial_fen, chess960=chess960)
+            parsed = parse_pgn_game(game_text)
         except Exception:
             continue
+        fens = parsed.fens
 
         for fen in fens:
             position = common.position_from_notation(fen, game=spec)

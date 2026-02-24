@@ -4,7 +4,7 @@ from torch.utils.data import Dataset
 
 from src import common
 from src.games import get_game
-from src.pgn_parser import iter_pgn_games, parse_pgn_game, parse_pgn_tags, parse_variant_tag, replay_moves_to_fens
+from src.pgn_parser import iter_pgn_games, parse_pgn_game, parse_pgn_tags, parse_variant_tag
 
 
 class BoardOrientationDataset(Dataset):
@@ -20,18 +20,11 @@ class BoardOrientationDataset(Dataset):
             if variant != self.game.key:
                 continue
 
-            parsed = parse_pgn_game(game_text)
-
-            initial_fen = parsed.tags.get("FEN")
             try:
-                fens = replay_moves_to_fens(
-                    parsed.moves,
-                    variant=variant,
-                    initial_fen=initial_fen,
-                    chess960=chess960,
-                )
+                parsed = parse_pgn_game(game_text)
             except Exception:
                 continue
+            fens = parsed.fens
 
             for fen in fens:
                 position = common.position_from_notation(fen, game=self.game)
@@ -61,7 +54,7 @@ class BoardOrientationDataset(Dataset):
 
 def test_data_set(game: str, pgn_file: str):
     spec = get_game(game)
-    c = BoardOrientationDataset(pgn_file, game=spec, max=10000)
+    c = BoardOrientationDataset(pgn_file, game=spec, max=1000)
     print("len(c):", len(c))
     for i in range(0, 100):#len(c)):
         input, target = c[i]

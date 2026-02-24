@@ -8,6 +8,7 @@ import pyffish as sf
 class ParsedPGN:
     tags: dict[str, str]
     moves: list[str]
+    fens: tuple[str, ...]
 
 
 RESULT_TOKENS = {"1-0", "0-1", "1/2-1/2", "*"}
@@ -93,6 +94,26 @@ def _legal_moves(
     return list(sf.legal_moves(variant, fen, [], chess960))
 
 
+def _san_destination(san: str) -> str | None:
+    """Extract the 2-char destination square from a normalized SAN token, if possible.
+
+    Used to pre-filter legal moves before calling sf.get_san, reducing the number
+    of expensive pyffish calls from O(legal_moves) to O(1-3) for most positions.
+    """
+    # Castling: we can't reliably map O-O / O-O-O to a UCI destination up front.
+    if san.startswith("O-O"):
+        return None
+    # Drops (e.g. shogi "P*7f"): destination is the 2 chars after '*'.
+    star = san.find("*")
+    if star >= 0:
+        rest = san[star + 1:]
+        return rest[:2] if len(rest) >= 2 else None
+    # Strip promotion suffix (e.g. "a8=Q" → "a8").
+    eq = san.find("=")
+    main = san[:eq] if eq >= 0 else san
+    return main[-2:] if len(main) >= 2 else None
+
+
 def _resolve_move_token(
     token: str,
     variant: str,
@@ -108,20 +129,33 @@ def _resolve_move_token(
         return token
 
     norm = _normalize_san_token(token)
-    notation_candidates = [
-        getattr(sf, "NOTATION_SAN", None),
-        getattr(sf, "NOTATION_JANGGI", None),
-        getattr(sf, "NOTATION_XIANGQI_WXF", None),
-        getattr(sf, "NOTATION_SHOGI_HODGES_NUMBER", None),
-    ]
 
-    for move in legal:
+    # Pre-filter legal moves by destination square to reduce sf.get_san calls.
+    # UCI moves are typically "a2a4" format; destination is at indices [2:4].
+    dest = _san_destination(norm)
+    fast = [m for m in legal if len(m) >= 4 and m[2:4] == dest] if dest else []
+
+    # Fast path: default SAN matching is enough for common variants like chess.
+    # Try destination-filtered candidates first, then the rest as fallback.
+    tried: set[str] = set()
+    for move in (*fast, *legal):
+        if move in tried:
+            continue
+        tried.add(move)
         san_default = _normalize_san_token(_safe_get_san(variant, fen, move, chess960))
         if san_default == norm:
             return move
-        for notation in notation_candidates:
-            if notation is None:
-                continue
+
+    # Fallback path: try explicit notations only when default SAN did not match.
+    notation_candidates = (
+        getattr(sf, "NOTATION_JANGGI", None),
+        getattr(sf, "NOTATION_XIANGQI_WXF", None),
+        getattr(sf, "NOTATION_SHOGI_HODGES_NUMBER", None),
+    )
+    for notation in notation_candidates:
+        if notation is None:
+            continue
+        for move in legal:
             try:
                 san = _normalize_san_token(_safe_get_san(variant, fen, move, chess960, notation=notation))
             except Exception:
@@ -218,6 +252,7 @@ def read_game_pgn(pgn_text: str) -> ParsedPGN:
     history: list[str] = []
     moves: list[str] = []
 
+    fens: list[str] = []
     for token in raw_tokens:
         move = _resolve_move_token(
             token,
@@ -233,8 +268,9 @@ def read_game_pgn(pgn_text: str) -> ParsedPGN:
             fen = sf.get_fen(variant, fen, [move], chess960, False, False, 0)
         except TypeError:
             fen = sf.get_fen(variant, fen, [move], chess960)
+        fens.append(fen)
 
-    return ParsedPGN(tags=tags, moves=moves)
+    return ParsedPGN(tags=tags, moves=moves, fens=tuple(fens))
 
 
 def parse_pgn_game(pgn_text: str) -> ParsedPGN:

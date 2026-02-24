@@ -1,20 +1,6 @@
 import argparse
+import importlib
 import inspect
-
-import src.board_image_rotation.dataset as image_rotation_data
-import src.board_image_rotation.show_wrong_evals as image_rotation_eval
-import src.board_image_rotation.train as image_rotation_train
-import src.board_orientation.dataset as orientation_data
-import src.board_orientation.show_wrong_evals as orientation_eval
-import src.board_orientation.train as orientation_train
-import src.bounding_box.dataset as bbox_data
-import src.bounding_box.train as bbox_train
-import src.existence.dataset as existence_data
-import src.existence.show_wrong_evals as existence_eval
-import src.existence.train as existence_train
-import src.fen_recognition.dataset as position_data
-import src.fen_recognition.show_wrong_evals as position_eval
-import src.fen_recognition.train as position_train
 
 
 DATASET = "dataset"
@@ -28,25 +14,25 @@ IMAGE_ROTATION = "image_rotation"
 EXISTENCE = "existence"
 
 
-functions = {
-    (DATASET, BBOX): bbox_data.test_data_set,
-    (TRAIN, BBOX): bbox_train.train,
+FUNCTION_TARGETS = {
+    (DATASET, BBOX): ("src.bounding_box.dataset", "test_data_set"),
+    (TRAIN, BBOX): ("src.bounding_box.train", "train"),
 
-    (DATASET, POSITION): position_data.test_data_set,
-    (TRAIN, POSITION): position_train.train,
-    (EVAL, POSITION): position_eval.show_wrong_fens,
+    (DATASET, POSITION): ("src.fen_recognition.dataset", "test_data_set"),
+    (TRAIN, POSITION): ("src.fen_recognition.train", "train"),
+    (EVAL, POSITION): ("src.fen_recognition.show_wrong_evals", "show_wrong_fens"),
 
-    (DATASET, ORIENTATION): orientation_data.test_data_set,
-    (TRAIN, ORIENTATION): orientation_train.train,
-    (EVAL, ORIENTATION): orientation_eval.show_wrong_orientation_evals,
+    (DATASET, ORIENTATION): ("src.board_orientation.dataset", "test_data_set"),
+    (TRAIN, ORIENTATION): ("src.board_orientation.train", "train"),
+    (EVAL, ORIENTATION): ("src.board_orientation.show_wrong_evals", "show_wrong_orientation_evals"),
 
-    (DATASET, IMAGE_ROTATION): image_rotation_data.test_data_set,
-    (TRAIN, IMAGE_ROTATION): image_rotation_train.train,
-    (EVAL, IMAGE_ROTATION): image_rotation_eval.show_wrong_image_rotations,
+    (DATASET, IMAGE_ROTATION): ("src.board_image_rotation.dataset", "test_data_set"),
+    (TRAIN, IMAGE_ROTATION): ("src.board_image_rotation.train", "train"),
+    (EVAL, IMAGE_ROTATION): ("src.board_image_rotation.show_wrong_evals", "show_wrong_image_rotations"),
 
-    (DATASET, EXISTENCE): existence_data.test_data_set,
-    (TRAIN, EXISTENCE): existence_train.train,
-    (EVAL, EXISTENCE): existence_eval.show_wrong_existence,
+    (DATASET, EXISTENCE): ("src.existence.dataset", "test_data_set"),
+    (TRAIN, EXISTENCE): ("src.existence.train", "train"),
+    (EVAL, EXISTENCE): ("src.existence.show_wrong_evals", "show_wrong_existence"),
 }
 
 
@@ -69,10 +55,11 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     selection = (args.function, args.model)
-    if selection not in functions:
-        raise Exception(f"Selection {selection} not supported\nSupported selections: {list(functions.keys())}")
+    if selection not in FUNCTION_TARGETS:
+        raise Exception(f"Selection {selection} not supported\nSupported selections: {list(FUNCTION_TARGETS.keys())}")
 
-    fn = functions[selection]
+    module_name, fn_name = FUNCTION_TARGETS[selection]
+    fn = getattr(importlib.import_module(module_name), fn_name)
     sig = inspect.signature(fn)
 
     kwargs = {}
