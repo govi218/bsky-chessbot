@@ -4,7 +4,7 @@ from torch.utils.data import Dataset
 
 from src import common
 from src.games import get_game
-from src.pgn_parser import iter_pgn_games, parse_pgn_game, parse_variant_tag, replay_moves_to_fens
+from src.pgn_parser import iter_pgn_games, parse_pgn_game, parse_pgn_tags, parse_variant_tag, replay_moves_to_fens
 
 
 class BoardOrientationDataset(Dataset):
@@ -15,10 +15,12 @@ class BoardOrientationDataset(Dataset):
         self.rotate_probability = rotate_probability
 
         for game_text in iter_pgn_games(pgn_file_name):
-            parsed = parse_pgn_game(game_text)
-            variant, chess960 = parse_variant_tag(parsed.tags.get("Variant", self.game.key))
+            tags = parse_pgn_tags(game_text)
+            variant, chess960 = parse_variant_tag(tags.get("Variant", self.game.key))
             if variant != self.game.key:
                 continue
+
+            parsed = parse_pgn_game(game_text)
 
             initial_fen = parsed.tags.get("FEN")
             try:
@@ -59,9 +61,9 @@ class BoardOrientationDataset(Dataset):
 
 def test_data_set(game: str, pgn_file: str):
     spec = get_game(game)
-    c = BoardOrientationDataset(pgn_file, game=spec, max=100)
-
-    for i in range(0, len(c)):
+    c = BoardOrientationDataset(pgn_file, game=spec, max=10000)
+    print("len(c):", len(c))
+    for i in range(0, 100):#len(c)):
         input, target = c[i]
 
         assert not input.isnan().any()

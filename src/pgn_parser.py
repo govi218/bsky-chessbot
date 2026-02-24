@@ -136,6 +136,7 @@ def extract_mainline_moves(move_text: str) -> list[str]:
     moves: list[str] = []
     idx = 0
     n = len(move_text)
+    sorted_result_tokens = sorted(RESULT_TOKENS, key=len, reverse=True)
     while idx < n:
         ch = move_text[idx]
 
@@ -171,6 +172,18 @@ def extract_mainline_moves(move_text: str) -> list[str]:
             while idx < n and move_text[idx].isdigit():
                 idx += 1
             continue
+
+        # Result tokens can start with a digit (e.g. "0-1"), so detect them
+        # before treating leading digits as move numbers.
+        matched_result = None
+        for result_token in sorted_result_tokens:
+            if move_text.startswith(result_token, idx):
+                end = idx + len(result_token)
+                if end == n or move_text[end].isspace() or move_text[end] in ")}]":
+                    matched_result = result_token
+                    break
+        if matched_result is not None:
+            break
 
         if ch.isdigit():
             while idx < n and move_text[idx].isdigit():

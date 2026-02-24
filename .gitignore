@@ -16,6 +16,7 @@ images/tiles
 /resources/chessboards_bbox_images
 /resources/website_screenshots
 /resources/lichess_games
+/resources/pychess_games
 /resources/board_position_images
 Figure_fen_0.939.png
 models/*.pth
