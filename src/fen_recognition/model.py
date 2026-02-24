@@ -1,6 +1,7 @@
 import timm
 import torch
 import torch.nn as nn
+import torchvision.models as models
 
 from src import consts
 from src.games import get_game
@@ -10,35 +11,23 @@ FULL_EMBED_DIM = 512
 
 
 def get_tile_model():
-    # wide_resnet28_10: CIFAR-adapted architecture, no aggressive early downsampling
-    # suitable for small ~32x32 tile inputs
-    result = timm.create_model(
-        "convnext_tiny",
-        pretrained=True,
-        num_classes=0,  # remove classification head, use as feature extractor
-    )
-    tile_features = result.num_features
-    return nn.Sequential(
-        result,
-        nn.Linear(tile_features, TILE_EMBED_DIM),
+    result = models.convnext_tiny(weights=models.ConvNeXt_Tiny_Weights.IMAGENET1K_V1)
+    result.classifier = nn.Sequential(
+        torch.nn.Flatten(start_dim=1, end_dim=-1),
+        torch.nn.Linear(in_features=768, out_features=TILE_EMBED_DIM),
         nn.ReLU(),
     )
+    return result
 
 
 def get_full_img_model():
-    # convnext_tiny: modern convolutional model, good spatial feature extraction
-    # for full board images (~224-384px range)
-    result = timm.create_model(
-        "convnext_tiny",
-        pretrained=True,
-        num_classes=0,  # remove classification head, use as feature extractor
-    )
-    full_features = result.num_features
-    return nn.Sequential(
-        result,
-        nn.Linear(full_features, FULL_EMBED_DIM),
+    result = models.convnext_tiny(weights=models.ConvNeXt_Tiny_Weights.IMAGENET1K_V1)
+    result.classifier = nn.Sequential(
+        torch.nn.Flatten(start_dim=1, end_dim=-1),
+        torch.nn.Linear(in_features=768, out_features=FULL_EMBED_DIM),
         nn.ReLU(),
     )
+    return result
 
 
 class BoardRec(nn.Module):

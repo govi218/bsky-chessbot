@@ -195,7 +195,9 @@ def _load_piece_images(game: str, tile_size: int) -> list[dict[str, Image.Image]
             continue
 
         file_names = config.piece_file_names_by_provider.get(piece_set.provider, ())
-        set_dir = Path(f"resources/pieces/{piece_set.provider}/{piece_set.set_name}")
+        set_dir = Path(
+            f"resources/pieces/{game}/{piece_set.provider}/{piece_set.set_name}"
+        )
         for file_name in file_names:
             path = set_dir / file_name
             if not path.exists():
@@ -224,13 +226,13 @@ def _load_piece_images(game: str, tile_size: int) -> list[dict[str, Image.Image]
     return all_sets
 
 
-def _list_board_themes(board_h: int, board_w: int) -> list[Image.Image]:
+def _list_board_themes(game: str, board_h: int, board_w: int) -> list[Image.Image]:
     themes: list[Image.Image] = [
         _random_uniform_board(board_h, board_w),
         _noisy_gray_board(board_h, board_w).convert("RGBA"),
         _noisy_color_board(board_h, board_w).convert("RGBA"),
     ]
-    for path in list_board_theme_paths():
+    for path in list_board_theme_paths(game):
         try:
             themes.append(open_board_theme(path, board_w=board_w, board_h=board_h))
         except Exception:
@@ -363,7 +365,7 @@ class BoardGenerator:
         self.random_offset = max(1, tile_size // 30)
         self.piece_image_sets = _load_piece_images(self.spec.key, tile_size)
         self.disk_themes = []
-        for path in list_board_theme_paths():
+        for path in list_board_theme_paths(self.spec.key):
             try:
                 self.disk_themes.append(
                     open_board_theme(path, board_w=self.board_w, board_h=self.board_h)
@@ -377,7 +379,7 @@ class BoardGenerator:
         # Pick a random board background: uniform, noise-gray, noise-color, or disk theme
         theme_choice = random.choice(
             ["uniform", "noise_gray", "noise_color"]
-            + (["disk"] if self.disk_themes else [])
+            + 6 * (["disk"] if self.disk_themes else [])
         )
         if theme_choice == "uniform":
             current_board = _random_uniform_board(board_h, board_w)
