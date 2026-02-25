@@ -132,4 +132,18 @@ class BboxGenerator:
         board_image_width = int(board_image_width * scale_x)
         board_image_height = int(board_image_height * scale_y)
 
+        # Randomly rotate both image and bbox target by right angles.
+        rotation = random.choice((0, 90, 180, 270))
+        if rotation == 90:
+            img = img.transpose(Image.ROTATE_90)
+            center_x, center_y = center_y, TARGET_SIZE - 1 - center_x
+            board_image_width, board_image_height = board_image_height, board_image_width
+        elif rotation == 180:
+            img = img.transpose(Image.ROTATE_180)
+            center_x, center_y = TARGET_SIZE - 1 - center_x, TARGET_SIZE - 1 - center_y
+        elif rotation == 270:
+            img = img.transpose(Image.ROTATE_270)
+            center_x, center_y = TARGET_SIZE - 1 - center_y, center_x
+            board_image_width, board_image_height = board_image_height, board_image_width
+
         return img, (center_x, center_y, board_image_width, board_image_height)

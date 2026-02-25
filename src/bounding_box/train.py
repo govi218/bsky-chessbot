@@ -41,13 +41,13 @@ def get_box_iou(test_data, model):
 
 
 LOSS_REPORT_FREQ = 50
-TEST_ACC_FREQ = 400
+TEST_ACC_FREQ = 1000
 
 
 def train(
     game: str,
     outdir="models",
-    total_steps=10_000,
+    total_steps=50_000,
     batch_size=8,
     max_lr=0.0005,
     test_set_size=2000,
