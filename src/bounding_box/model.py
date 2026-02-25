@@ -13,14 +13,6 @@ class BoardBBox(nn.Module):
         self.model = models.segmentation.lraspp_mobilenet_v3_large()
         self.model.classifier = models.segmentation.lraspp.LRASPPHead(40, 960, 1, 128)
 
-        # print(self.model)
-
-        # img = torch.rand([2, 3, consts.BBOX_IMAGE_SIZE, consts.BBOX_IMAGE_SIZE])
-        # output = self.model(img)
-        # print(output["out"].shape)
-
-        # assert False
-
     def forward(self, img):
         batch_size, ch, h, w = img.shape
 

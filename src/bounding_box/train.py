@@ -60,8 +60,8 @@ def train(
     )
     test_set = dataset.generate_fixed_test_set(game=game, size=test_set_size)
 
-    train_loader = torch.utils.data.DataLoader(train_set, batch_size=batch_size, drop_last=True)
-    test_loader = torch.utils.data.DataLoader(test_set, batch_size=batch_size, shuffle=False, drop_last=True)
+    train_loader = torch.utils.data.DataLoader(train_set, batch_size=batch_size, drop_last=True, num_workers=8, persistent_workers=True)
+    test_loader = torch.utils.data.DataLoader(test_set, batch_size=batch_size, shuffle=False, drop_last=True, num_workers=8, persistent_workers=True)
 
     model = BoardBBox()
     model.to(device)
