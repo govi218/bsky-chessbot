@@ -117,11 +117,16 @@ def crop_to_chessboard(img: Image.Image, max_num_tries=10) -> Image.Image:
         if img.width == 0 or img.height == 0:
             return None
 
-        img_tensor = common.to_rgb_tensor(img)
+        img_tensor = common.to_rgb_tensor(img).float()
         img_tensor = functional.resize(
             img_tensor, [consts.BBOX_IMAGE_SIZE, consts.BBOX_IMAGE_SIZE]
         )
-        img_tensor = common.MinMaxMeanNormalization()(img_tensor)
+        # Normalize to [0, 1] for Faster R-CNN
+        mn, mx = img_tensor.min(), img_tensor.max()
+        if mx > mn:
+            img_tensor = (img_tensor - mn) / (mx - mn)
+        else:
+            img_tensor = torch.zeros_like(img_tensor)
 
         bbox = get_bbox(bbox_model.get(), img_tensor)
         if bbox is None:

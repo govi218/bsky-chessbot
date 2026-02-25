@@ -1,6 +1,7 @@
 import argparse
 import importlib
 import inspect
+import os
 
 
 DATASET = "dataset"
@@ -53,6 +54,15 @@ if __name__ == "__main__":
     parser.add_argument("--pgn_test", type=str, help="test PGN file path")
     parser.add_argument("--model_path", type=str, help="model checkpoint path for eval commands")
     args = parser.parse_args()
+
+    # In headless environments, force a non-GUI matplotlib backend for training.
+    # This avoids Tk backend crashes when generating plots at the end of training.
+    if (
+        args.function == TRAIN
+        and not os.environ.get("DISPLAY")
+        and not os.environ.get("WAYLAND_DISPLAY")
+    ):
+        os.environ.setdefault("MPLBACKEND", "Agg")
 
     selection = (args.function, args.model)
     if selection not in FUNCTION_TARGETS:

@@ -1,39 +1,25 @@
-import torch
 import torch.nn as nn
 
-from src import consts
-
-from torchvision import models
+from torchvision.models.detection import fasterrcnn_mobilenet_v3_large_fpn
+from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 
 
 class BoardBBox(nn.Module):
     def __init__(self):
         super(BoardBBox, self).__init__()
 
-        self.model = models.segmentation.lraspp_mobilenet_v3_large()
-        self.model.classifier = models.segmentation.lraspp.LRASPPHead(40, 960, 1, 128)
+        self.model = fasterrcnn_mobilenet_v3_large_fpn(
+            weights="DEFAULT",
+            box_detections_per_img=1,
+        )
+        # Replace head for single-class detection (background + chessboard)
+        in_features = self.model.roi_heads.box_predictor.cls_score.in_features
+        self.model.roi_heads.box_predictor = FastRCNNPredictor(in_features, 2)
 
-    def forward(self, img):
-        batch_size, ch, h, w = img.shape
-
-        assert h == consts.BBOX_IMAGE_SIZE
-        assert w == consts.BBOX_IMAGE_SIZE
-        assert ch == 3
-        assert batch_size >= 2 or not self.training
-
-        x = self.model(img)["out"]
-
-        assert list(x.shape) == [
-            batch_size,
-            1,
-            consts.BBOX_IMAGE_SIZE,
-            consts.BBOX_IMAGE_SIZE,
-        ]
-
-        return x
+    def forward(self, images, targets=None):
+        return self.model(images, targets)
 
 
 if __name__ == "__main__":
     model = BoardBBox()
-
-    print(torch.cuda.is_available())
+    print(model)
