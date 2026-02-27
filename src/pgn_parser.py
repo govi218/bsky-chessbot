@@ -135,25 +135,43 @@ def _resolve_move_token(
     dest = _san_destination(norm)
     fast = [m for m in legal if len(m) >= 4 and m[2:4] == dest] if dest else []
 
-    # Fast path: default SAN matching is enough for common variants like chess.
-    # Try destination-filtered candidates first, then the rest as fallback.
+    # For some variants (e.g. shogi) the pyffish default sf.get_san() produces a
+    # notation that never matches pychess PGN (Japanese-style vs Western SAN).
+    # Scanning all legal moves with the wrong notation wastes O(legal_moves) calls
+    # per move, so we skip the default scan for those variants and go straight to
+    # the notation that is known to match.
+    _PRIMARY_NOTATION: dict[str, int | None] = {
+        "shogi": getattr(sf, "NOTATION_SAN", None),
+    }
+    primary_notation = _PRIMARY_NOTATION.get(variant)
+
+    # Fast path: use the primary (or default) notation, filtered by destination first.
     tried: set[str] = set()
     for move in (*fast, *legal):
         if move in tried:
             continue
         tried.add(move)
-        san_default = _normalize_san_token(_safe_get_san(variant, fen, move, chess960))
-        if san_default == norm:
+        try:
+            if primary_notation is not None:
+                san = _normalize_san_token(
+                    _safe_get_san(variant, fen, move, chess960, notation=primary_notation)
+                )
+            else:
+                san = _normalize_san_token(_safe_get_san(variant, fen, move, chess960))
+        except Exception:
+            continue
+        if san == norm:
             return move
 
-    # Fallback path: try explicit notations only when default SAN did not match.
+    # Fallback path: try remaining notations only when the fast path found no match.
     notation_candidates = (
+        getattr(sf, "NOTATION_SAN", None),
         getattr(sf, "NOTATION_JANGGI", None),
         getattr(sf, "NOTATION_XIANGQI_WXF", None),
         getattr(sf, "NOTATION_SHOGI_HODGES_NUMBER", None),
     )
     for notation in notation_candidates:
-        if notation is None:
+        if notation is None or notation == primary_notation:
             continue
         for move in legal:
             try:

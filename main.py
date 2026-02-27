@@ -83,6 +83,8 @@ if __name__ == "__main__":
         kwargs["pgn_file"] = args.pgn
     if "pgn_file_name" in sig.parameters and args.pgn is not None:
         kwargs["pgn_file_name"] = args.pgn
+    if "pgn_dir" in sig.parameters and args.pgn is not None:
+        kwargs["pgn_dir"] = args.pgn
     if "train_pgn_file" in sig.parameters and args.pgn_train is not None:
         kwargs["train_pgn_file"] = args.pgn_train
     if "test_pgn_file" in sig.parameters and args.pgn_test is not None:

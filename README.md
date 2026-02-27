@@ -65,7 +65,7 @@ uv run python chess_diagram_to_fen.py --game chess --dir resources/test_images/r
 
 ```shell
 ./download_website_screenshots.sh
-./download_lichess_games.sh
+./download_pychess_games.sh
 ```
 
 #### Review datasets (optional)
@@ -75,7 +75,7 @@ uv run python main.py dataset position --game chess
 uv run python main.py dataset bbox --game chess
 uv run python main.py dataset image_rotation --game chess
 uv run python main.py dataset existence --game chess
-uv run python main.py dataset orientation --game chess --pgn resources/lichess_games/lichess_db_standard_rated_2013-05.pgn
+uv run python main.py dataset orientation --game chess
 ```
 
 #### Train
@@ -85,7 +85,7 @@ uv run python main.py train position --game chess
 uv run python main.py train bbox --game chess
 uv run python main.py train image_rotation --game chess
 uv run python main.py train existence --game chess
-uv run python main.py train orientation --game chess --pgn_train resources/lichess_games/lichess_db_standard_rated_2013-04.pgn --pgn_test resources/lichess_games/lichess_db_standard_rated_2013-05.pgn
+uv run python main.py train orientation --game chess
 ```
 
 #### Evaluate (optional)

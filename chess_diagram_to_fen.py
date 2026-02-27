@@ -108,7 +108,7 @@ def _get_models(game: str) -> _GameModels:
                 name=f"{model_dir}best_model_position_*.pth",
             ),
             orientation=SomeModel(
-                OrientationModel,
+                lambda g=game: OrientationModel(game=g),
                 _find_latest_model(game, "best_model_orientation_*.pth"),
                 name=f"{model_dir}best_model_orientation_*.pth",
             ),

@@ -6,7 +6,7 @@ import torch
 from PIL import Image, ImageDraw
 from torchvision.transforms import v2
 
-from src.games import CHESS, XIANGQI, GameSpec, get_game
+from src.games import CHESS, SHOGI, XIANGQI, GameSpec, get_game
 
 
 @dataclass(frozen=True)
@@ -112,8 +112,19 @@ def _split_piece_placement_rows(piece_placement: str) -> list[str]:
 def _parse_row_to_grid(row: str, game: str | GameSpec) -> list[str | None]:
     spec = get_game(game)
 
-    for c in row:
-        if c.isdigit() or c in spec.piece_set:
+    # Validate: each character must be a digit, a single-char piece symbol, or the
+    # start of a multi-char promoted piece (e.g. "+P" for shogi).
+    vi = 0
+    while vi < len(row):
+        c = row[vi]
+        if c.isdigit():
+            vi += 1
+            continue
+        if c in spec.piece_set:
+            vi += 1
+            continue
+        if c == "+" and vi + 1 < len(row) and ("+" + row[vi + 1]) in spec.piece_set:
+            vi += 2
             continue
         raise ValueError(f"Invalid piece symbol '{c}' for game '{spec.key}'")
 
@@ -134,6 +145,19 @@ def _parse_row_to_grid(row: str, game: str | GameSpec) -> list[str | None]:
             return result
 
         c = row[i]
+
+        # Multi-char promoted piece (e.g. "+P" in shogi)
+        if c == "+":
+            if i + 1 < len(row):
+                piece = "+" + row[i + 1]
+                if piece in spec.piece_set:
+                    tail = parse_from(i + 2, col + 1)
+                    result = None if tail is None else [piece] + tail
+                    cache[key] = result
+                    return result
+            cache[key] = None
+            return None
+
         if c in spec.piece_set:
             tail = parse_from(i + 1, col + 1)
             result = None if tail is None else [c] + tail
@@ -388,7 +412,11 @@ def normalize_piece_placement(
     spec = get_game(game)
 
     placement = pseudo_piece_placement
-    placement = placement.replace("_", "/").replace("-", "/").replace(".", "1")
+    placement = placement.replace("_", "/").replace(".", "1")
+    # "-" is a valid separator only for non-shogi games; in shogi it should not appear
+    # in piece placement (hand notation is already stripped upstream), so skip it.
+    if spec.key != SHOGI.key:
+        placement = placement.replace("-", "/")
 
     try:
         grid = parse_piece_placement(placement, spec)
@@ -403,13 +431,21 @@ def normalize_position_notation(
     spec = get_game(game)
 
     notation = pseudo_notation.strip()
-    notation = notation.replace("+", " ")
+    # In shogi, "+" is the promoted-piece prefix (e.g. "+B", "+P") — do NOT replace it
+    # with a space. For other games it may appear as a field separator.
+    if spec.key != SHOGI.key:
+        notation = notation.replace("+", " ")
     notation = re.sub(r"\s+", " ", notation).strip()
     if not notation:
         return None
 
     tokens = notation.split(" ")
-    placement = normalize_piece_placement(tokens[0], spec)
+    raw_placement_token = tokens[0]
+    if spec.key == SHOGI.key:
+        # pyffish shogi FENs embed hand pieces as "[2Pb]" / "[-]" / "[]" at the end
+        # of the piece placement field — strip it before parsing.
+        raw_placement_token = re.sub(r"\[.*?\]", "", raw_placement_token)
+    placement = normalize_piece_placement(raw_placement_token, spec)
     if placement is None:
         return None
 
@@ -439,6 +475,17 @@ def normalize_position_notation(
             if side_token not in {"w", "b", "r"}:
                 return None
             side = "w" if side_token in {"w", "r"} else "b"
+        return f"{placement} {side}"
+
+    if spec.key == SHOGI.key:
+        # pyffish shogi SFEN uses "b" for sente (first player) and "w" for gote.
+        # Additional tokens (pieces-in-hand, move count) are ignored.
+        side = "b"
+        if len(tokens) >= 2:
+            side_token = tokens[1].lower()
+            if side_token not in {"w", "b"}:
+                return None
+            side = side_token
         return f"{placement} {side}"
 
     side = tokens[1] if len(tokens) >= 2 else "w"

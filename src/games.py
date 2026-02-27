@@ -59,9 +59,39 @@ XIANGQI = GameSpec(
 )
 
 
+SHOGI = GameSpec(
+    key="shogi",
+    board_rows=9,
+    board_cols=9,
+    piece_symbols=(
+        "K", "R", "B", "G", "S", "N", "L", "P",
+        "+R", "+B", "+S", "+N", "+L", "+P",
+        "k", "r", "b", "g", "s", "n", "l", "p",
+        "+r", "+b", "+s", "+n", "+l", "+p",
+    ),
+    color_pairs=(
+        ("K", "k"),
+        ("R", "r"),
+        ("B", "b"),
+        ("G", "g"),
+        ("S", "s"),
+        ("N", "n"),
+        ("L", "l"),
+        ("P", "p"),
+        ("+R", "+r"),
+        ("+B", "+b"),
+        ("+S", "+s"),
+        ("+N", "+n"),
+        ("+L", "+l"),
+        ("+P", "+p"),
+    ),
+)
+
+
 GAMES: dict[str, GameSpec] = {
     CHESS.key: CHESS,
     XIANGQI.key: XIANGQI,
+    SHOGI.key: SHOGI,
 }
 
 

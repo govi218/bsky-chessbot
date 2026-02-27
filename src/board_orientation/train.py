@@ -2,7 +2,10 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from pathlib import Path
 from tqdm.auto import tqdm
 
 from src.board_orientation import dataset
@@ -40,15 +43,13 @@ TEST_ACC_FREQ = 2000
 
 
 def train(
-    train_pgn_file,
-    test_pgn_file,
-    game: str,
+    pgn_dir="resources/pychess_games",
+    game: str = "chess",
     outdir="models",
-    total_steps=10000,
+    total_steps=20000,
     batch_size=8,
     max_lr=0.001,
     train_test_split=0.7,
-    max_data=200000,
     rotate_probability=0.3,  # we don't rotate half of the time, since in reality, the majority of chess diagrams will be depicted from the white side
 ):
     start_time_string = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
@@ -59,17 +60,25 @@ def train(
     else:
         print("Using CPU")
 
+    all_files = sorted(Path(pgn_dir).glob("*.pgn"))
+    split_idx = max(1, int(len(all_files) * train_test_split))
+    train_files = all_files[:split_idx]
+    test_files = all_files[split_idx:] if len(all_files) > split_idx else all_files
+
+    max_train = total_steps * batch_size
+    max_test = int(max_train * (1.0 - train_test_split) / train_test_split)
+
     train_set = dataset.BoardOrientationDataset(
-        pgn_file_name=train_pgn_file,
+        pgn_files=train_files,
         game=game,
         rotate_probability=rotate_probability,
-        max=max_data,
+        max=max_train,
     )
     test_set = dataset.BoardOrientationDataset(
-        pgn_file_name=test_pgn_file,
+        pgn_files=test_files,
         game=game,
         rotate_probability=rotate_probability,
-        max=int(len(train_set) * (1.0 - train_test_split)),
+        max=max_test,
     )
 
     train_loader = torch.utils.data.DataLoader(
@@ -79,7 +88,7 @@ def train(
         test_set, batch_size=batch_size, shuffle=False, drop_last=True
     )
 
-    model = OrientationModel()
+    model = OrientationModel(game=game)
     model.to(device)
 
     criterion = nn.MSELoss()
