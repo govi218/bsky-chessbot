@@ -19,8 +19,8 @@ images/tiles
 /resources/pychess_games
 /resources/board_position_images
 Figure_fen_0.939.png
-models/*.pth
-models/*.png
+models/**/*.pth
+models/**/*.png
 !models/best_model_bbox_0.958_2024-01-28-22-49-40.pth
 !models/best_model_fen_0.953_2024-02-03-13-49-31.pth
 !models/best_model_orientation_0.987_2024-02-04-17-34-05.pth
@@ -29,3 +29,4 @@ models/*.png
 !models/best_model_fen_0.943_2024-04-19-09-31-24.pth
 /pychess-variants-server-example
 /fairyfish-example
+/models_old

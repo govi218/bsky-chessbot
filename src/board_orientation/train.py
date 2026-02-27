@@ -149,8 +149,9 @@ def train(
                 break
     progress.close()
 
-    os.makedirs(outdir, exist_ok=True)
-    file_name = f"{outdir}/best_model_orientation_{game}_{best_acc:.3f}_{start_time_string}.pth"
+    game_outdir = os.path.join(outdir, game)
+    os.makedirs(game_outdir, exist_ok=True)
+    file_name = f"{game_outdir}/best_model_orientation_{best_acc:.3f}_{start_time_string}.pth"
     print("Saving to", file_name)
     torch.save(best_model, file_name)
 

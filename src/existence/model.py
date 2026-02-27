@@ -1,8 +1,5 @@
 import torch
 import torch.nn as nn
-
-from src import consts
-
 from torchvision import models
 
 

@@ -1,6 +1,8 @@
 import datetime
 import os
 
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
@@ -36,7 +38,7 @@ def get_accuracy_and_loss(loader, model, criterion):
 
 
 LOSS_REPORT_FREQ = 200
-TEST_ACC_FREQ = 4000
+TEST_ACC_FREQ = 1000
 
 
 def train(
@@ -45,7 +47,7 @@ def train(
     total_steps=10_000,
     batch_size=8,
     max_lr=0.001,
-    test_set_size=500,
+    test_set_size=2000,
 ):
     start_time_string = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
     print(start_time_string)
@@ -62,8 +64,19 @@ def train(
     )
     test_set = dataset.generate_fixed_test_set(game=game, size=test_set_size)
 
-    train_loader = torch.utils.data.DataLoader(train_set, batch_size=batch_size, drop_last=True)
-    test_loader = torch.utils.data.DataLoader(test_set, batch_size=batch_size, shuffle=False, drop_last=True)
+    train_loader = torch.utils.data.DataLoader(
+        train_set,
+        batch_size=batch_size,
+        num_workers=8,
+        drop_last=True,
+    )
+    test_loader = torch.utils.data.DataLoader(
+        test_set,
+        batch_size=batch_size,
+        num_workers=8,
+        shuffle=False,
+        drop_last=True,
+    )
 
     model = BoardExistence()
     model.to(device)
@@ -109,9 +122,7 @@ def train(
             )
 
         if num_steps % TEST_ACC_FREQ == 0 or num_steps >= total_steps:
-            test_acc, test_loss = get_accuracy_and_loss(
-                test_loader, model, criterion
-            )
+            test_acc, test_loss = get_accuracy_and_loss(test_loader, model, criterion)
             test_loss_list.append(test_loss)
             test_acc_list.append(test_acc)
             tqdm.write(
@@ -129,8 +140,9 @@ def train(
             break
     progress.close()
 
-    os.makedirs(outdir, exist_ok=True)
-    file_name = f"{outdir}/best_model_existence_{game}_{best_acc:.3f}_{start_time_string}.pth"
+    game_outdir = os.path.join(outdir, game)
+    os.makedirs(game_outdir, exist_ok=True)
+    file_name = f"{game_outdir}/best_model_existence_{best_acc:.3f}_{start_time_string}.pth"
     print("Saving to", file_name)
     torch.save(best_model, file_name)
 
