@@ -42,7 +42,7 @@ TEST_ACC_FREQ = 1000
 def train(
     game: str,
     outdir="models",
-    total_steps=5_000,
+    total_steps=20_000,
     batch_size=8,
     max_lr=0.001,
     test_set_size=2000,
