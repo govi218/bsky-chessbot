@@ -2,13 +2,12 @@ import random
 
 import matplotlib.pyplot as plt
 import torch
+from PIL import Image
 from torch.utils.data import IterableDataset, TensorDataset
 from torchvision.transforms import v2
-from PIL import Image
 
 from src import common, consts
 from src.fen_recognition.generate_chessboards import BoardGenerator
-
 
 default_transforms = torch.nn.Sequential(
     v2.ToDtype(torch.float32),

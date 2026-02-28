@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="42mm" height="42mm" viewBox="0 0 42 42">
+    <defs>
+        <filter id="1TO_svg__a" width="1.12" height="1.117" x="-.04" y="-.033" color-interpolation-filters="sRGB">
+            <feFlood flood-color="#000" flood-opacity=".851" result="flood"/>
+            <feComposite in="flood" in2="SourceGraphic" operator="in" result="composite1"/>
+            <feGaussianBlur in="composite1" result="blur" stdDeviation=".4"/>
+            <feOffset dx="1" dy="1.5" result="offset"/>
+            <feComposite in="SourceGraphic" in2="offset" result="composite2"/>
+        </filter>
+    </defs>
+    <path fill="#ffe680" d="m282.207 225.022-2.486 26.138-9.494 2.969-9.332-2.491-2.929-26.614z" filter="url(#1TO_svg__a)" transform="translate(-249.587 -219.326)"/>
+    <path fill="#d40000" d="M25.037 27.237c.053-.128-.018-.494-.158-.814-.652-2.755-1.666-5.287-2.808-7.588 0-.08.246-.351.545-.622.755-.655 1.633-1.93 1.896-2.729.456-1.467-.477-3.394-2.496-4-1.094-.28-2.636-.115-3.67-.183-1.409-.058-1.897.31-1.897.916 0 .67.348 1.502 1.981 1.502 1.253.03 4.015-1.183 4.527.373.229 1.037.193 1.607-4.463 4.758-.62.444-1.262.63-1.174 1.06.151.898.451 1.48 1.664 2.01.137-.777 1.716-1.99 1.716-1.99.858 1.622 1.225 3.544 1.231 5.047 0 1.5.718 1.83 2.158 2.244.737.223.86.223.948.016"/>
+</svg>

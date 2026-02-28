@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60">
+    <defs>
+        <filter id="0FU_svg__a" color-interpolation-filters="sRGB">
+            <feFlood flood-color="#000" flood-opacity=".498" result="flood"/>
+            <feComposite in="flood" in2="SourceGraphic" operator="in" result="composite1"/>
+            <feGaussianBlur in="composite1" result="blur" stdDeviation="2.5"/>
+            <feOffset dx="2" dy="2" result="offset"/>
+            <feComposite in="SourceGraphic" in2="offset" result="composite2"/>
+        </filter>
+    </defs>
+    <path fill="#fff" stroke="#000" stroke-width=".471" d="M52.961 30c0 12.68-10.28 22.96-22.962 22.96-12.68 0-22.96-10.28-22.96-22.96s10.28-22.96 22.96-22.96c12.682 0 22.962 10.278 22.962 22.96z" filter="url(#0FU_svg__a)" transform="translate(-4.762 -4.762)scale(1.15873)"/>
+    <g stroke-width="1.918">
+        <path fill="none" stroke="#2c2c2b" stroke-width=".346" d="M56.604 30c0 14.693-11.911 26.604-26.604 26.604C15.306 56.604 3.396 44.693 3.396 30 3.396 15.306 15.306 3.396 30 3.396S56.604 15.306 56.604 30z"/>
+        <path fill="#86cfd0" d="M42.81 42.81c0 7.075-5.736 12.81-12.81 12.81s-12.81-5.736-12.81-12.81S22.924 30 30 30c7.074 0 12.81 5.736 12.81 12.81"/>
+        <path fill="#273567" d="m34.137 23.898-3.946-8.083-3.936 8.08"/>
+        <path fill="#fff" stroke="#273567" stroke-width="1.334" d="M22.308 30.103a7.692 7.692 0 1 1 15.382.001 7.692 7.692 0 0 1-15.382 0z"/>
+        <path fill="#273567" d="M25.072 30.103a4.927 4.927 0 1 1 9.854.001 4.927 4.927 0 0 1-9.854 0z"/>
+        <path fill="#fff" d="M27.505 31.715v-2.987h2.021v.352h-1.624v.923h1.406v.354h-1.406v1.358zm4.493-2.987h.396v1.725q0 .45-.102.714a.87.87 0 0 1-.369.43q-.266.167-.697.167-.42-.001-.688-.145a.83.83 0 0 1-.382-.417q-.114-.276-.113-.749v-1.725h.396v1.72q0 .39.072.573a.55.55 0 0 0 .25.285.9.9 0 0 0 .429.1q.437-.001.622-.197.186-.2.186-.76z"/>
+    </g>
+</svg>

@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60">
+    <defs>
+        <filter id="0NY_svg__a">
+            <feGaussianBlur in="SourceAlpha" result="blur" stdDeviation="2"/>
+            <feOffset dx="2" dy="2" result="offsetBlur"/>
+            <feBlend in="SourceGraphic" in2="offsetBlur"/>
+        </filter>
+    </defs>
+    <g filter="url(#0NY_svg__a)" transform="translate(40.406 1.058)scale(.95625)">
+        <path fill="#cdbc68" d="m-10.96 6.237-12.838 3.608-7.051 44.45H9.085l-6.79-44.163z"/>
+    </g>
+    <path fill="red" stroke="red" stroke-width="4.938" d="M372.14 1666.57v-346.55h15v346.55z" transform="matrix(-.07554 0 0 .05517 58.726 -51.246)"/>
+    <g stroke="red" stroke-width="4.938">
+        <path fill="#ccbb67" stroke-width="7.713" d="m373.444 1325.142-13.45-8.57 2.65-111.341 16.688-28.568 17.542 27.755 2.373 111.247-13.382 9.224z" transform="matrix(-.0533 0 0 .03892 50.282 -29.048)"/>
+        <path fill="none" stroke-width="4.516" d="M379.551 1181.017v105.099l16.535 13.127m-16.535-13.127-16.317 14.496" transform="matrix(-.0533 0 0 .03892 50.282 -29.048)"/>
+    </g>
+    <path fill="red" d="M30.05 23.296a8.864 8.864 0 0 1 8.865 8.865 8.864 8.864 0 0 1-8.865 8.864 8.864 8.864 0 0 1-8.864-8.864 8.864 8.864 0 0 1 8.864-8.865m0 1.933a6.93 6.93 0 0 0-6.93 6.932 6.93 6.93 0 0 0 6.93 6.93 6.93 6.93 0 0 0 6.932-6.93 6.93 6.93 0 0 0-6.932-6.932"/>
+    <path fill="red" stroke="red" stroke-width="4.938" d="M372.14 1666.57v-346.55h15v346.55z" transform="matrix(-.07554 0 0 -.05517 58.726 115.629)"/>
+    <g stroke="red" stroke-width="4.938">
+        <path fill="#cdbc68" stroke-width="7.713" d="m373.444 1325.142-13.45-8.57 2.65-111.341 16.688-28.568 17.542 27.755 2.373 111.247-13.382 9.224z" transform="matrix(-.0533 0 0 -.03892 50.28 93.43)"/>
+        <path fill="none" stroke-width="4.516" d="M379.551 1181.017v105.099l16.535 13.127m-16.535-13.127-16.317 14.496" transform="matrix(-.0533 0 0 -.03892 50.28 93.43)"/>
+    </g>
+    <path fill="red" stroke="red" stroke-width="4.938" d="M372.14 1666.57v-346.55h15v346.55z" transform="rotate(135 5.566 -25.283)scale(.0755 -.0552)"/>
+    <path fill="red" stroke="red" stroke-width="4.938" d="M372.14 1666.57v-346.55h15v346.55z" transform="rotate(45 91.233 59.46)scale(.07553 .05515)"/>
+    <path fill="red" stroke="red" stroke-width="4.938" d="M372.14 1666.57v-346.55h15v346.55z" transform="matrix(0 -.07554 -.05517 0 112.905 60.836)"/>
+    <g stroke="red" stroke-width="4.938">
+        <path fill="#ccbb67" stroke-width="7.713" d="m373.444 1325.142-13.45-8.57 2.65-111.341 16.688-28.568 17.542 27.755 2.373 111.247-13.382 9.224z" transform="matrix(0 -.0533 -.03892 0 91.316 52.392)"/>
+        <path fill="none" stroke-width="4.516" d="M379.551 1181.017v105.099l16.535 13.127m-16.535-13.127-16.317 14.496" transform="matrix(0 -.0533 -.03892 0 91.316 52.392)"/>
+    </g>
+    <path fill="red" stroke="red" stroke-width="4.938" d="M372.14 1666.57v-346.55h15v346.55z" transform="matrix(0 -.07554 .05517 0 -52.845 60.836)"/>
+    <g stroke="red" stroke-width="4.938">
+        <path fill="#cdbc68" stroke-width="7.713" d="m373.444 1325.142-13.45-8.57 2.65-111.341 16.688-28.568 17.542 27.755 2.373 111.247-13.382 9.224z" transform="matrix(0 -.0533 .03892 0 -31.316 52.392)"/>
+        <path fill="none" stroke-width="4.516" d="M379.551 1181.017v105.099l16.535 13.127m-16.535-13.127-16.317 14.496" transform="matrix(0 -.0533 .03892 0 -31.316 52.392)"/>
+    </g>
+    <g stroke="red" stroke-width="4.938">
+        <path fill="#ccbb67" stroke-width="7.713" d="m373.444 1325.142-13.45-8.57 2.65-111.341 16.688-28.568 17.542 27.755 2.373 111.247-13.382 9.224z" transform="matrix(.03769 -.03768 .02753 .02753 -27.581 2.875)"/>
+        <path fill="none" stroke-width="4.516" d="M379.551 1181.017v105.099l16.535 13.127m-16.535-13.127-16.317 14.496" transform="matrix(.03769 -.03768 .02753 .02753 -27.581 2.875)"/>
+    </g>
+    <g stroke="red" stroke-width="4.938">
+        <path fill="#ccbb67" stroke-width="7.713" d="m373.444 1325.142-13.45-8.57 2.65-111.341 16.688-28.568 17.542 27.755 2.373 111.247-13.382 9.224z" transform="rotate(45 40.524 107.644)scale(-.0533 .03892)"/>
+        <path fill="none" stroke-width="4.516" d="M379.551 1181.017v105.099l16.535 13.127m-16.535-13.127-16.317 14.496" transform="rotate(45 40.524 107.644)scale(-.0533 .03892)"/>
+    </g>
+</svg>

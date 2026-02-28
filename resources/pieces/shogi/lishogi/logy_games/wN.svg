@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60">
+    <defs>
+        <filter id="0KE_svg__a" color-interpolation-filters="sRGB">
+            <feFlood flood-color="#000" flood-opacity=".498" result="flood"/>
+            <feComposite in="flood" in2="SourceGraphic" operator="in" result="composite1"/>
+            <feGaussianBlur in="composite1" result="blur" stdDeviation="2.5"/>
+            <feOffset dx="2" dy="2" result="offset"/>
+            <feComposite in="SourceGraphic" in2="offset" result="composite2"/>
+        </filter>
+    </defs>
+    <path fill="#fff" stroke="#000" stroke-width=".471" d="M52.961 30c0 12.68-10.28 22.96-22.962 22.96-12.68 0-22.96-10.28-22.96-22.96s10.28-22.96 22.96-22.96c12.682 0 22.962 10.278 22.962 22.96z" filter="url(#0KE_svg__a)" transform="translate(-4.762 -4.762)scale(1.15873)"/>
+    <g stroke-width="1.918">
+        <path fill="none" stroke="#2c2c2b" stroke-width=".346" d="M56.606 30c0 14.693-11.912 26.604-26.606 26.604S3.394 44.693 3.394 30C3.394 15.306 15.306 3.396 30 3.396S56.607 15.306 56.607 30z"/>
+        <path fill="#86cfd0" d="M42.81 42.81c0 7.075-5.736 12.81-12.81 12.81s-12.81-5.736-12.81-12.81S22.924 30 30 30c7.074 0 12.81 5.735 12.81 12.81"/>
+        <path fill="#273567" d="m20.96 13.118 6.214 3.81V9.302z"/>
+        <path fill="none" stroke="#273567" stroke-width="1.334" d="M27.5 9.65v13.764h5.002V9.65z"/>
+        <path fill="#273567" d="m39.064 13.118-6.217 3.81V9.302z"/>
+        <path fill="#fff" stroke="#273567" stroke-width="1.334" d="M40.272 30.342a10.273 10.273 0 1 1-20.545-.002 10.273 10.273 0 0 1 20.545.002z"/>
+        <path fill="#273567" d="M37.883 30.342A7.88 7.88 0 0 1 30 38.226a7.88 7.88 0 0 1-7.883-7.884A7.88 7.88 0 0 1 30 22.459a7.88 7.88 0 0 1 7.883 7.883"/>
+        <path fill="#fff" d="M25.93 32.475v-3.986h.534v1.976l1.97-1.976h.712l-1.67 1.622 1.745 2.364h-.695l-1.416-2.008-.646.63v1.378zm3.743 0v-3.986h2.868v.467h-2.336v1.227h2.183v.467h-2.183v1.358h2.433v.467zm3.786 0v-3.986h.533v3.986z"/>
+    </g>
+</svg>

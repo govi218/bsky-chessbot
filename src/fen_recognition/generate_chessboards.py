@@ -17,7 +17,7 @@ from pyfastnoiselite.pyfastnoiselite import (
 )
 
 from src import common, consts
-from src.games import get_game
+from src.games import get_game, CHESS
 from src.render_config import (
     get_render_config,
     list_board_theme_paths,
@@ -368,12 +368,9 @@ class BoardGenerator:
         self.piece_image_sets = _load_piece_images(self.spec.key, tile_size)
         self.disk_themes = []
         for path in list_board_theme_paths(self.spec.key):
-            try:
-                self.disk_themes.append(
-                    open_board_theme(path, board_w=self.board_w, board_h=self.board_h)
-                )
-            except Exception:
-                continue
+            self.disk_themes.append(
+                open_board_theme(path, board_w=self.board_w, board_h=self.board_h)
+            )
 
     def generate_one(self) -> tuple[Image.Image, common.Position]:
         board_h, board_w = self.board_h, self.board_w
@@ -410,7 +407,9 @@ class BoardGenerator:
             position, current_board, self.tile_size, piece_images, self.random_offset
         ).convert("RGB")
 
-        if random.randint(0, 1) == 1:
+        if random.randint(0, 1) == 1 and self.spec.key in [CHESS.key]:
+            # we only do this flipping business for games that have a clear "light and dark" piece scheme
+            # games like shogi should not use this augmentation.
             position = _flip_piece_colors(position)
             image = ImageOps.invert(image)
 
