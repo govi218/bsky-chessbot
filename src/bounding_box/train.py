@@ -49,7 +49,7 @@ def train(
     outdir="models",
     total_steps=50_000,
     batch_size=8,
-    max_lr=0.0005,
+    max_lr=0.0003,
     test_set_size=2000,
 ):
     start_time_string = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
