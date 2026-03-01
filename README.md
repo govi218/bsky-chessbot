@@ -61,6 +61,12 @@ uv run python chess_diagram_to_fen.py --game chess --dir resources/test_images/r
 
 ## Train models yourself
 
+```shell
+bash ./train.sh # trains chess, xiangqi and shogi models
+```
+
+... or alternatively manually go through the steps described below
+
 #### Generate training data
 
 ```shell
@@ -89,6 +95,8 @@ uv run python main.py train orientation --game chess
 ```
 
 #### Evaluate (optional)
+
+TODO: test if this still works
 
 ```shell
 uv run python main.py eval position --game chess --model_path models/<position-model>.pth

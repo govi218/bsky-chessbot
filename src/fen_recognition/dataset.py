@@ -9,20 +9,41 @@ from src import common, consts
 from src.fen_recognition.generate_chessboards import BoardGenerator
 from src.games import get_game
 
-
+#
 augment_transforms = torch.nn.Sequential(
-    v2.RandomApply([common.AddGaussianNoise(std=0.1, scale_to_input_range=True)], p=0.4),
-    v2.RandomApply([v2.RandomChoice([v2.ElasticTransform(alpha=30.0), v2.ElasticTransform(alpha=40.0)])], p=0.4),
-    v2.RandomGrayscale(p=0.4),
+    v2.RandomApply(
+        [common.AddGaussianNoise(std=0.1, scale_to_input_range=True)], p=0.4
+    ),
+    v2.RandomApply(
+        [
+            v2.RandomChoice(
+                [v2.ElasticTransform(alpha=30.0), v2.ElasticTransform(alpha=40.0)]
+            )
+        ],
+        p=0.4,
+    ),
+    v2.RandomGrayscale(p=0.1),
     v2.RandomPosterize(bits=2, p=0.2),
-    v2.RandomApply([v2.ColorJitter(brightness=0.9, contrast=(0.1, 1.5), hue=0.3)], p=0.3),
+    v2.RandomApply(
+        [
+            v2.RandomChoice(
+                [
+                    v2.ColorJitter(brightness=0.9, contrast=(0.1, 1.5), hue=0.3),
+                    common.RandomColorTint(max_tint=0.7),
+                ]
+            )
+        ],
+        p=0.6,
+    ),
     v2.RandomApply([v2.GaussianBlur(kernel_size=(3, 3))], p=0.2),
     v2.RandomApply([v2.GaussianBlur(kernel_size=(5, 5))], p=0.1),
     v2.RandomAdjustSharpness(sharpness_factor=10, p=0.1),
     v2.RandomEqualize(p=0.8),
 )
 
-affine_transforms = v2.RandomAffine(degrees=1.5, translate=(0.01, 0.01), scale=(0.99, 1.01), shear=1.5)
+affine_transforms = v2.RandomAffine(
+    degrees=2.0, translate=(0.01, 0.01), scale=(0.99, 1.01), shear=1.8
+)
 
 
 def get_default_transforms(game: str, tile_size: int = consts.DEFAULT_TILE_SIZE):
@@ -49,7 +70,10 @@ class GenerativeBoardDataset(IterableDataset):
         self.generator = BoardGenerator(game, tile_size)
         self.default_transforms = torch.nn.Sequential(
             v2.ToDtype(torch.float32),
-            v2.Resize(size=(self.board_h, self.board_w), interpolation=v2.InterpolationMode.BICUBIC),
+            v2.Resize(
+                size=(self.board_h, self.board_w),
+                interpolation=v2.InterpolationMode.BICUBIC,
+            ),
             common.MinMaxMeanNormalization(),
         )
         self.augments = torch.nn.Sequential(

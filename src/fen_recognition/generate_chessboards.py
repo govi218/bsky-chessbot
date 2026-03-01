@@ -17,7 +17,7 @@ from pyfastnoiselite.pyfastnoiselite import (
 )
 
 from src import common, consts
-from src.games import get_game, CHESS
+from src.games import CHESS, SHOGI, XIANGQI, get_game
 from src.render_config import (
     get_render_config,
     list_board_theme_paths,
@@ -372,45 +372,67 @@ class BoardGenerator:
                 open_board_theme(path, board_w=self.board_w, board_h=self.board_h)
             )
 
-    def generate_one(self) -> tuple[Image.Image, common.Position]:
-        board_h, board_w = self.board_h, self.board_w
-
-        # Pick a random board background: uniform, noise-gray, noise-color, or disk theme
+    def generate_board_background(self, width: int, height: int) -> Image.Image:
+        """Return a randomly styled board background (no pieces) at the given size."""
         theme_choice = random.choice(
             ["uniform", "noise_gray", "noise_color"]
             + 6 * (["disk"] if self.disk_themes else [])
         )
         if theme_choice == "uniform":
-            current_board = _random_uniform_board(board_h, board_w)
+            bg = _random_uniform_board(height, width)
         elif theme_choice == "noise_gray":
-            current_board = _noisy_gray_board(board_h, board_w).convert("RGBA")
+            bg = _noisy_gray_board(height, width).convert("RGBA")
         elif theme_choice == "noise_color":
-            current_board = _noisy_color_board(board_h, board_w).convert("RGBA")
+            bg = _noisy_color_board(height, width).convert("RGBA")
         else:
-            current_board = random.choice(self.disk_themes).copy()
+            bg = random.choice(self.disk_themes).copy().resize((width, height))
 
         if random.randint(0, 1) == 1:
-            current_board = ImageOps.mirror(current_board)
+            bg = ImageOps.mirror(bg)
         if random.randint(0, 1) == 1:
-            current_board = ImageOps.flip(current_board)
+            bg = ImageOps.flip(bg)
         if random.randint(0, 1) == 1:
             noise = (
-                _noisy_color_board(board_h, board_w)
+                _noisy_color_board(height, width)
                 if random.randint(0, 1) == 1
-                else _noisy_gray_board(board_h, board_w)
+                else _noisy_gray_board(height, width)
             )
-            current_board.paste(noise, mask=_noisy_gray_board(board_h, board_w))
+            bg.paste(noise, mask=_noisy_gray_board(height, width))
+
+        return bg.convert("RGBA")
+
+    def generate_one(
+        self,
+        use_board_background: bool = True,
+        board_background: Image.Image | None = None,
+    ) -> tuple[Image.Image, common.Position]:
+        board_h, board_w = self.board_h, self.board_w
+
+        if use_board_background:
+            current_board = (
+                board_background
+                if board_background is not None
+                else self.generate_board_background(board_w, board_h)
+            )
+        else:
+            current_board = Image.new("RGBA", (board_w, board_h), (0, 0, 0, 0))
 
         piece_images = random.choice(self.piece_image_sets)
         position = _random_position(self.spec.key)
         image = _board_to_image(
             position, current_board, self.tile_size, piece_images, self.random_offset
-        ).convert("RGB")
+        )
 
-        if random.randint(0, 1) == 1 and self.spec.key in [CHESS.key]:
-            # we only do this flipping business for games that have a clear "light and dark" piece scheme
-            # games like shogi should not use this augmentation.
-            position = _flip_piece_colors(position)
-            image = ImageOps.invert(image)
+        if use_board_background:
+            image = image.convert("RGB")
+
+            if random.randint(0, 1) == 1:
+                # we only do this flipping business for games that have a clear "light and dark" piece scheme
+                # games like shogi should use this augmentation without flipping the pieces, since light and dark don't matter.
+                if self.spec.key in [CHESS.key]:
+                    position = _flip_piece_colors(position)
+                    image = ImageOps.invert(image)
+                if self.spec.key in [SHOGI.key]:
+                    image = ImageOps.invert(image)
 
         return image, position

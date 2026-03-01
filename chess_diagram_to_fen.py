@@ -1,30 +1,29 @@
-import torch
-from torchvision.transforms import functional
-import matplotlib.pyplot as plt
 import argparse
-import random
 import os
+import random
 from dataclasses import dataclass
-from PIL import Image, ImageOps
 from pathlib import Path
-from src.bounding_box.model import BoardBBox
-from src.fen_recognition.model import BoardRec
-from src.board_orientation.model import OrientationModel
-from src.board_image_rotation.model import ImageRotation
-from src.existence.model import BoardExistence
-import src.fen_recognition.dataset as fen_dataset
+
+import matplotlib.pyplot as plt
+import torch
+from PIL import Image, ImageOps
+from torchvision.transforms import functional
+
 import src.board_image_rotation.dataset as rotation_dataset
-
+import src.fen_recognition.dataset as fen_dataset
+from src import common, consts
+from src.board_image_rotation.model import ImageRotation
+from src.board_orientation.model import OrientationModel
 from src.bounding_box.inference import get_bbox
-from src import consts, common
+from src.bounding_box.model import BoardBBox
+from src.existence.model import BoardExistence
+from src.fen_recognition.model import BoardRec
 from src.games import GAMES, get_game
-
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 class SomeModel:
-
     def __init__(self, model_class: type, default_path=None, name: str = "") -> None:
         self.model = None
         self.model_path = default_path
@@ -104,7 +103,9 @@ def _get_models(game: str) -> _GameModels:
             ),
             fen=SomeModel(
                 lambda g=game: BoardRec(game=g),
-                _find_latest_model(game, "best_model_position_*.pth", "best_model_fen_*.pth"),
+                _find_latest_model(
+                    game, "best_model_position_*.pth", "best_model_fen_*.pth"
+                ),
                 name=f"{model_dir}best_model_position_*.pth",
             ),
             orientation=SomeModel(
@@ -199,7 +200,8 @@ def board_image_rotation(img: Image.Image, game: str) -> int:
     input_img = common.to_rgb_tensor(img)
     input_img = rotation_dataset.default_transforms(input_img).to(device)
     pred = (
-        _get_models(game).image_rotation.get()(input_img.unsqueeze(0))
+        _get_models(game)
+        .image_rotation.get()(input_img.unsqueeze(0))
         .cpu()
         .squeeze(0)
         .argmax()
@@ -212,7 +214,10 @@ def board_image_rotation(img: Image.Image, game: str) -> int:
 def is_board_flipped(board: common.Position, game: str, no_rotate_bias=0.2) -> bool:
     board_tensor = common.position_to_tensor(board)
     output = (
-        _get_models(game).orientation.get()(board_tensor.unsqueeze(0).to(device)).squeeze(0).cpu()
+        _get_models(game)
+        .orientation.get()(board_tensor.unsqueeze(0).to(device))
+        .squeeze(0)
+        .cpu()
     )
 
     return output.item() - no_rotate_bias > 0.5
@@ -227,7 +232,7 @@ def rotate_board(board: common.Position, game: str) -> common.Position:
 
 
 @torch.no_grad()
-def get_board_from_cropped_img(img: Image.Image, game: str, num_tries=20) -> common.Position:
+def get_board_from_cropped_img(img: Image.Image, game: str) -> common.Position:
     spec = get_game(game)
     models = _get_models(game)
     position_transforms = fen_dataset.get_default_transforms(game)
@@ -237,38 +242,16 @@ def get_board_from_cropped_img(img: Image.Image, game: str, num_tries=20) -> com
         return None
 
     img = common.to_rgb_tensor(img).to(device)
-    sum = None
-    with torch.no_grad():
-        tries = 0
-        while tries < num_tries:
-            input = img
+    input = position_transforms(img)
 
-            if tries >= 2:
-                input = fen_dataset.augment_transforms(input)
+    if input.isnan().any():
+        print("WARNING: Found nan after transforms.")
+        return None
 
-            color_flipped = tries % 2 == 1
-            if color_flipped:
-                input = -input
+    output = models.fen.get()(input.unsqueeze(0)).squeeze(0)
+    output = output.clamp(0, 1)
 
-            input = position_transforms(input)
-
-            if input.isnan().any():
-                print("WARNING: Found nan after transforms.")
-                continue
-
-            output = models.fen.get()(input.unsqueeze(0)).squeeze(0)
-            output = output.clamp(0, 1)
-
-            if color_flipped:
-                output = common.flip_color_tensor(output, spec)
-
-            if sum is None:
-                sum = output
-            else:
-                sum += output
-            tries += 1
-
-    board = common.tensor_to_position(sum.cpu(), spec)
+    board = common.tensor_to_position(output.cpu(), spec)
     if board.occupied == 0:
         return None
     return board
@@ -323,10 +306,11 @@ def get_fen(
     result = FenResult()
     result.cropped_image = crop_to_board(img, spec.key, max_num_tries=num_tries)
     if result.cropped_image is not None:
-        result.image_rotation_angle = board_image_rotation(result.cropped_image, spec.key)
+        result.image_rotation_angle = board_image_rotation(
+            result.cropped_image, spec.key
+        )
 
         if auto_rotate_image:
-
             result.cropped_image = result.cropped_image.rotate(
                 -rotation_dataset.ROTATIONS[result.image_rotation_angle], expand=True
             )
@@ -337,10 +321,9 @@ def get_fen(
             ):
                 result.cropped_image = ImageOps.mirror(result.cropped_image)
 
-        board = get_board_from_cropped_img(result.cropped_image, spec.key, num_tries=num_tries)
+        board = get_board_from_cropped_img(result.cropped_image, spec.key)
 
         if board is not None:
-
             result.board_is_flipped = is_board_flipped(board, spec.key)
 
             if auto_rotate_board and result.board_is_flipped:
@@ -421,7 +404,6 @@ def demo(root_dir: str, shuffle_files: bool, game: str):
 
 
 if __name__ == "__main__":
-
     parser = argparse.ArgumentParser(description="TODO")
     parser.add_argument(
         "--dir",

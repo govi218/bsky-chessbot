@@ -38,7 +38,11 @@ class Position:
 
     @property
     def occupied(self) -> int:
-        return sum(1 for sq in parse_piece_placement(self.piece_placement, self.game) if sq is not None)
+        return sum(
+            1
+            for sq in parse_piece_placement(self.piece_placement, self.game)
+            if sq is not None
+        )
 
 
 def to_rgb_tensor(img):
@@ -90,6 +94,22 @@ class AddGaussianNoise(torch.nn.Module):
             std *= range
             mean *= range
         return tensor + torch.randn_like(tensor) * std + mean
+
+
+class RandomColorTint(torch.nn.Module):
+    def __init__(self, max_tint=0.2):
+        super().__init__()
+        self.max_tint = max_tint
+
+    def forward(self, x):
+
+        # per-channel uniform tint
+        tint = torch.empty(x.shape[0], device=x.device).uniform_(
+            -self.max_tint, self.max_tint
+        )[:, None, None]
+
+        # shift around midpoint so white is affected
+        return (x - 0.5 + tint + 0.5).clamp(0.0, 1.0)
 
 
 def pad(img: Image.Image, x, y):
@@ -193,7 +213,9 @@ def _parse_row_to_grid(row: str, game: str | GameSpec) -> list[str | None]:
     return parsed
 
 
-def parse_piece_placement(piece_placement: str, game: str | GameSpec) -> list[str | None]:
+def parse_piece_placement(
+    piece_placement: str, game: str | GameSpec
+) -> list[str | None]:
     spec = get_game(game)
     rows = _split_piece_placement_rows(piece_placement)
     if len(rows) != spec.board_rows:
@@ -227,7 +249,9 @@ def grid_to_piece_placement(grid: list[str | None], game: str | GameSpec) -> str
                 empty_count += 1
                 continue
             if piece not in spec.piece_set:
-                raise ValueError(f"Invalid piece symbol '{piece}' for game '{spec.key}'")
+                raise ValueError(
+                    f"Invalid piece symbol '{piece}' for game '{spec.key}'"
+                )
             if empty_count:
                 row_tokens.append(str(empty_count))
                 empty_count = 0
@@ -490,6 +514,7 @@ def normalize_position_notation(
 
     side = tokens[1] if len(tokens) >= 2 else "w"
     return f"{placement} {side}"
+
 
 def glob_all_image_files_recursively(dir) -> list:
     return list(

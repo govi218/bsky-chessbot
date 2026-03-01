@@ -4,12 +4,10 @@ import matplotlib.pyplot as plt
 import torch
 from torch.utils.data import IterableDataset
 from torchvision.transforms import v2
-from torchvision.utils import draw_bounding_boxes
 
-from src.common import to_rgb_tensor, AddGaussianNoise
 from src import consts
 from src.bounding_box.generate_chessboards_bbox import BboxGenerator
-
+from src.common import AddGaussianNoise, to_rgb_tensor
 
 default_transforms = torch.nn.Sequential(
     v2.ToDtype(torch.float32),
@@ -147,10 +145,17 @@ def test_data_set(game: str, size: int = 1000):
             break
         assert not img.isnan().any()
 
-        vis = (img * 255).to(torch.uint8)
-        target_box = target["boxes"].squeeze(0)
-        vis = draw_bounding_boxes(vis, target_box.unsqueeze(0), width=5, colors="red")
-
         fig, ax1 = plt.subplots(1, 1)
-        ax1.imshow(vis.permute(1, 2, 0))
+        ax1.imshow(img.permute(1, 2, 0))
+        x1, y1, x2, y2 = target["boxes"].squeeze(0).tolist()
+        rect = plt.Rectangle(
+            (x1, y1),
+            x2 - x1,
+            y2 - y1,
+            linewidth=2,
+            edgecolor=(1.0, 0.0, 0.0, 0.8),
+            facecolor=(1.0, 0.0, 0.0, 0.1),
+            linestyle="--",
+        )
+        ax1.add_patch(rect)
         plt.show()
