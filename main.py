@@ -55,14 +55,10 @@ if __name__ == "__main__":
     parser.add_argument("--model_path", type=str, help="model checkpoint path for eval commands")
     args = parser.parse_args()
 
-    # In headless environments, force a non-GUI matplotlib backend for training.
-    # This avoids Tk backend crashes when generating plots at the end of training.
-    if (
-        args.function == TRAIN
-        and not os.environ.get("DISPLAY")
-        and not os.environ.get("WAYLAND_DISPLAY")
-    ):
-        os.environ.setdefault("MPLBACKEND", "Agg")
+    # Training only saves plots to disk, so always use a non-GUI backend.
+    # This avoids Tk backend crashes in headless/misconfigured display sessions.
+    if args.function == TRAIN:
+        os.environ["MPLBACKEND"] = "Agg"
 
     selection = (args.function, args.model)
     if selection not in FUNCTION_TARGETS:
