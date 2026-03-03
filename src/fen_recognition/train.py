@@ -46,15 +46,15 @@ def get_accuracy_and_loss(loader, model, criterion, game: str):
 
 
 LOSS_REPORT_FREQ = 200
-TEST_ACC_FREQ = 2000
+TEST_ACC_FREQ = 4000
 
 
 def train(
     game: str,
     outdir="models",
-    total_steps=60_000,
+    total_steps=100_000,
     batch_size=8,
-    lr=0.00004,
+    max_lr=0.00008,
     test_set_size=2000,
     checkpoint=None,
     tile_size: int = consts.DEFAULT_TILE_SIZE,
@@ -93,7 +93,10 @@ def train(
     model.to(device)
 
     criterion = nn.MSELoss()
-    optimizer = optim.AdamW(model.parameters(), lr=lr)
+    optimizer = optim.AdamW(model.parameters(), lr=max_lr)
+    scheduler = optim.lr_scheduler.OneCycleLR(
+        optimizer, max_lr=max_lr, total_steps=total_steps,
+    )
 
     test_loss_list = []
     test_acc_list = []
@@ -112,6 +115,7 @@ def train(
         loss = criterion(output, target)
         loss.backward()
         optimizer.step()
+        scheduler.step()
 
         num_steps += 1
         progress.update(1)

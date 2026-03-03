@@ -411,7 +411,7 @@ def demo(root_dir: str, shuffle_files: bool, game: str):
         if true_fen is None:
             print(f"WARNING: Couldn't find ground truth FEN")
         else:
-            if fen_result is not None and fen_result.fen == true_fen:
+            if fen_result is not None and fen_result.fen.split()[0] == true_fen.split()[0]:
                 print("Correct")
             else:
                 print(true_fen)

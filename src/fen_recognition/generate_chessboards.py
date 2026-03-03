@@ -296,6 +296,44 @@ def _warp_piece_image(img: Image.Image) -> Image.Image:
     )
 
 
+def _shift_hue(img: Image.Image, hue_shift: float) -> Image.Image:
+    """Shift hue of an RGBA image by hue_shift in [0, 1)."""
+    arr = np.array(img, dtype=np.float32) / 255.0
+    rgb = arr[:, :, :3]
+    alpha = arr[:, :, 3:]
+
+    r, g, b = rgb[:, :, 0], rgb[:, :, 1], rgb[:, :, 2]
+    maxc = np.maximum(np.maximum(r, g), b)
+    minc = np.minimum(np.minimum(r, g), b)
+    v = maxc
+    delta = maxc - minc
+    s = np.divide(delta, maxc, out=np.zeros_like(delta), where=maxc != 0)
+
+    h = np.zeros_like(r)
+    mask = delta != 0
+    m = mask & (maxc == r)
+    h[m] = (g[m] - b[m]) / delta[m] % 6
+    m = mask & (maxc == g)
+    h[m] = (b[m] - r[m]) / delta[m] + 2
+    m = mask & (maxc == b)
+    h[m] = (r[m] - g[m]) / delta[m] + 4
+    h = (h / 6.0 + hue_shift) % 1.0
+
+    h6 = h * 6.0
+    i = np.floor(h6).astype(np.int32) % 6
+    f = h6 - np.floor(h6)
+    p = v * (1.0 - s)
+    q = v * (1.0 - s * f)
+    t = v * (1.0 - s * (1.0 - f))
+
+    r_new = np.select([i == 0, i == 1, i == 2, i == 3, i == 4, i == 5], [v, q, p, p, t, v])
+    g_new = np.select([i == 0, i == 1, i == 2, i == 3, i == 4, i == 5], [t, v, v, q, p, p])
+    b_new = np.select([i == 0, i == 1, i == 2, i == 3, i == 4, i == 5], [p, p, t, v, v, q])
+
+    arr_out = np.concatenate([np.stack([r_new, g_new, b_new], axis=-1), alpha], axis=-1)
+    return Image.fromarray((np.clip(arr_out, 0, 1) * 255).astype(np.uint8), mode="RGBA")
+
+
 def _board_to_image(
     position: common.Position,
     board_image: Image.Image,
@@ -318,6 +356,13 @@ def _board_to_image(
             if piece_type not in warped_by_type:
                 warped_by_type[piece_type] = _warp_piece_image(piece_img)
             per_board_piece_images[key] = warped_by_type[piece_type]
+
+    if random.random() < 0.5:
+        hue_shift = random.random()
+        per_board_piece_images = {
+            key: _shift_hue(piece_img, hue_shift)
+            for key, piece_img in per_board_piece_images.items()
+        }
 
     idx = 0
     for row in range(spec.board_rows):

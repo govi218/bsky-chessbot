@@ -125,13 +125,13 @@ def get_quad_metrics(test_data, model):
 
 
 LOSS_REPORT_FREQ = 50
-TEST_ACC_FREQ = 1000
+TEST_ACC_FREQ = 2000
 
 
 def train(
     game: str,
     outdir="models",
-    total_steps=50_000,
+    total_steps=80_000,
     batch_size=8,
     max_lr=0.0003,
     test_set_size=2000,

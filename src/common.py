@@ -436,11 +436,7 @@ def normalize_piece_placement(
     spec = get_game(game)
 
     placement = pseudo_piece_placement
-    placement = placement.replace("_", "/").replace(".", "1")
-    # "-" is a valid separator only for non-shogi games; in shogi it should not appear
-    # in piece placement (hand notation is already stripped upstream), so skip it.
-    if spec.key != SHOGI.key:
-        placement = placement.replace("-", "/")
+    placement = placement.replace("_", "/").replace("-", "/").replace(".", "1")
 
     try:
         grid = parse_piece_placement(placement, spec)

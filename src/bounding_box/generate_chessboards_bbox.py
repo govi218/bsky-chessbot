@@ -89,7 +89,7 @@ class BboxGenerator:
         background_root_dir: str = "resources/website_screenshots",
         board_middleground_probability: float = 0.4,
         perspective_probability: float = 0.3,
-        jitter_fraction: float = 0.035,
+        jitter_fraction: float = 0.04,
     ):
         self.board_generator = BoardGenerator(game)
         self.board_middleground_probability = board_middleground_probability
