@@ -67,7 +67,11 @@ def _perspective_warp_image(
     )
     dst = np.array(dst_corners, dtype=np.float64)
 
-    t = ProjectiveTransform.from_estimate(dst, src)
+    t = ProjectiveTransform()
+    if not t.estimate(dst, src):
+        raise ValueError(
+            "Could not estimate projective transform from destination corners"
+        )
 
     coeffs = t.params.flatten()[:8]
     canvas_w, canvas_h = canvas_size
