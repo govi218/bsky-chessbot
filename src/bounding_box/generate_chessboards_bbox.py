@@ -67,8 +67,7 @@ def _perspective_warp_image(
     )
     dst = np.array(dst_corners, dtype=np.float64)
 
-    t = ProjectiveTransform()
-    t.estimate(dst, src)
+    t = ProjectiveTransform.from_estimate(dst, src)
 
     coeffs = t.params.flatten()[:8]
     canvas_w, canvas_h = canvas_size
@@ -89,8 +88,8 @@ class BboxGenerator:
         game: str,
         background_root_dir: str = "resources/website_screenshots",
         board_middleground_probability: float = 0.4,
-        perspective_probability: float = 0.3,
-        jitter_fraction: float = 0.04,
+        perspective_probability: float = 0.2,
+        jitter_fraction: float = 0.03,
     ):
         self.board_generator = BoardGenerator(game)
         self.board_middleground_probability = board_middleground_probability
@@ -107,18 +106,25 @@ class BboxGenerator:
         assert len(self.background_image_files) > 0, "No background images found"
 
     def generate_one(self) -> tuple[Image.Image, list[tuple[float, float]]]:
-        use_board_background = random.random() >= 0.1
-        board_bg = (
-            self.board_generator.generate_board_background(
-                self.board_generator.board_w, self.board_generator.board_h
-            )
-            if use_board_background
-            else None
+        board_bg = self.board_generator.generate_board_background(
+            self.board_generator.board_w, self.board_generator.board_h
         )
         board_image, _ = self.board_generator.generate_one(
-            use_board_background=use_board_background,
             board_background=board_bg,
         )
+
+        # 10% of the time: just the board, no website background
+        board_only = random.random() < 0.1
+        if board_only:
+            img = board_image.convert("RGB")
+            img = img.resize((TARGET_SIZE, TARGET_SIZE))
+            normalized_corners = [
+                (0.0, 0.0),
+                (1.0, 0.0),
+                (1.0, 1.0),
+                (0.0, 1.0),
+            ]
+            return img, normalized_corners
 
         # Pick random background screenshot and crop
         bg_path = random.choice(self.background_image_files)
@@ -145,8 +151,7 @@ class BboxGenerator:
             new_width = max(4, int(new_height * board_aspect))
         board_image = board_image.resize((new_width, new_height))
         board_image_width, board_image_height = board_image.size
-        if board_bg is not None:
-            board_bg = board_bg.resize((board_image_width, board_image_height))
+        board_bg = board_bg.resize((board_image_width, board_image_height))
 
         assert board_image_width <= crop_width
         assert board_image_height <= crop_height
@@ -178,7 +183,7 @@ class BboxGenerator:
                 (board_x, board_y + board_image_height),
             ]
 
-        if random.uniform(0.0, 1.0) < self.board_middleground_probability and use_board_background:
+        if random.uniform(0.0, 1.0) < self.board_middleground_probability:
             max_relative_size = random.uniform(0.1, 3.0)
             max_aspect_ratio = random.uniform(1.0, 4.0)
             while True:
@@ -237,8 +242,7 @@ class BboxGenerator:
         # Build a combined image of the board + surrounding strip tiles in
         # source (axis-aligned) space, then warp the whole thing together so
         # that strip edges stay flush with the board after perspective.
-        if use_board_background and random.random() < 0.8:
-            assert board_bg is not None
+        if random.random() < 0.8:
             strip_w = random.randint(1, max(1, board_image_width // 5))
             strip_h = random.randint(1, max(1, board_image_height // 5))
 
@@ -353,10 +357,7 @@ class BboxGenerator:
                 )
                 img.paste(warped_rgb, (0, 0), alpha_mask)
             else:
-                if use_board_background:
-                    img.paste(board_image, (board_x, board_y))
-                else:
-                    img.paste(board_image, (board_x, board_y), board_image)
+                img.paste(board_image, (board_x, board_y))
 
         # Normalize to [0, 1] relative to crop dimensions and clamp
         img = img.resize((TARGET_SIZE, TARGET_SIZE))

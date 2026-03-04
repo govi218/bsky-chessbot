@@ -93,7 +93,7 @@ def _get_models(game: str) -> _GameModels:
             ),
             bbox=SomeModel(
                 BoardQuad,
-                _find_latest_model(game, "best_model_quad_*.pth", "best_model_bbox_*.pth"),
+                _find_latest_model(game, "best_model_quad_*.pth"),
                 name=f"{model_dir}best_model_quad_*.pth",
             ),
             image_rotation=SomeModel(

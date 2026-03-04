@@ -8,14 +8,13 @@ from PIL import Image
 from src.games import GameSpec, get_game
 
 PIECES_DIR = Path("resources/pieces")
-PIECE_EXTENSIONS = {".svg", ".png"}
+ALLOWED_EXTENSIONS = {".svg", ".png", ".webp", ".jpg", ".jpeg"}
 
 
 @dataclass(frozen=True)
 class PieceSetConfig:
     provider: str
     set_name: str
-    use_placeholders: bool = False
 
 
 @dataclass(frozen=True)
@@ -41,7 +40,7 @@ def _discover_render_config(game: str) -> GameRenderConfig:
                 continue
             piece_sets.append(PieceSetConfig(provider, set_dir.name))
             for f in set_dir.iterdir():
-                if f.suffix.lower() in PIECE_EXTENSIONS:
+                if f.suffix.lower() in ALLOWED_EXTENSIONS:
                     file_names_by_provider.setdefault(provider, set()).add(f.name)
 
     return GameRenderConfig(
@@ -50,12 +49,6 @@ def _discover_render_config(game: str) -> GameRenderConfig:
             k: tuple(sorted(v)) for k, v in file_names_by_provider.items()
         },
     )
-
-
-PLACEHOLDER_RENDER_CONFIG = GameRenderConfig(
-    piece_sets=(PieceSetConfig("placeholder", "default", use_placeholders=True),),
-    piece_file_names_by_provider={},
-)
 
 
 GAME_RENDER_CONFIGS: dict[str, GameRenderConfig] = {
@@ -67,7 +60,11 @@ GAME_RENDER_CONFIGS: dict[str, GameRenderConfig] = {
 
 def get_render_config(game: str | GameSpec) -> GameRenderConfig:
     spec = get_game(game)
-    return GAME_RENDER_CONFIGS.get(spec.key, PLACEHOLDER_RENDER_CONFIG)
+    if spec.key not in GAME_RENDER_CONFIGS:
+        raise FileNotFoundError(
+            f"No piece sets found for game '{spec.key}' in {PIECES_DIR / spec.key}"
+        )
+    return GAME_RENDER_CONFIGS[spec.key]
 
 
 def list_board_theme_paths(game: str) -> list[Path]:
@@ -76,7 +73,7 @@ def list_board_theme_paths(game: str) -> list[Path]:
         return []
     return [
         p for p in game_dir.rglob("*")
-        if p.suffix.lower() in {".png", ".jpg", ".jpeg", ".webp", ".svg"}
+        if p.suffix.lower() in ALLOWED_EXTENSIONS
     ]
 
 

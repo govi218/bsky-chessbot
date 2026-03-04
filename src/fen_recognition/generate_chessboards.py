@@ -1,10 +1,13 @@
 import random
+import urllib.request
+import warnings
 from functools import lru_cache
 from io import BytesIO
 from pathlib import Path
 
 import numpy as np
 from cairosvg import svg2png
+from fontTools.ttLib import TTFont
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 from pyfastnoiselite.pyfastnoiselite import (
     CellularDistanceFunction,
@@ -143,6 +146,181 @@ def _noisy_color_board(board_h: int, board_w: int) -> Image.Image:
     )
 
 
+_FONT_CACHE_DIR = Path("resources/fonts")
+
+# Curated Google Fonts covering many scripts and styles.
+# Format: (filename, Google Fonts GitHub path relative to google/fonts/main/)
+_GOOGLE_FONTS = [
+    # Latin / Latin Extended
+    ("Roboto-Regular.ttf", "ofl/roboto/Roboto%5Bwdth%2Cwght%5D.ttf"),
+    ("OpenSans-Regular.ttf", "ofl/opensans/OpenSans%5Bwdth%2Cwght%5D.ttf"),
+    ("Lora-Regular.ttf", "ofl/lora/Lora%5Bwght%5D.ttf"),
+    ("Oswald-Regular.ttf", "ofl/oswald/Oswald%5Bwght%5D.ttf"),
+    ("PlayfairDisplay-Regular.ttf", "ofl/playfairdisplay/PlayfairDisplay%5Bwght%5D.ttf"),
+    ("Pacifico-Regular.ttf", "ofl/pacifico/Pacifico-Regular.ttf"),
+    ("IndieFlower-Regular.ttf", "ofl/indieflower/IndieFlower-Regular.ttf"),
+    ("DancingScript-Regular.ttf", "ofl/dancingscript/DancingScript%5Bwght%5D.ttf"),
+    ("Caveat-Regular.ttf", "ofl/caveat/Caveat%5Bwght%5D.ttf"),
+    ("AbrilFatface-Regular.ttf", "ofl/abrilfatface/AbrilFatface-Regular.ttf"),
+    ("PressStart2P-Regular.ttf", "ofl/pressstart2p/PressStart2P-Regular.ttf"),
+    ("Bangers-Regular.ttf", "ofl/bangers/Bangers-Regular.ttf"),
+    ("RubikMonoOne-Regular.ttf", "ofl/rubikmonoone/RubikMonoOne-Regular.ttf"),
+    ("FredokaOne-Regular.ttf", "ofl/fredoka/Fredoka%5Bwdth%2Cwght%5D.ttf"),
+    ("Orbitron-Regular.ttf", "ofl/orbitron/Orbitron%5Bwght%5D.ttf"),
+    # Cyrillic
+    ("Rubik-Regular.ttf", "ofl/rubik/Rubik%5Bwght%5D.ttf"),
+    ("PTSerif-Regular.ttf", "ofl/ptserif/PT_Serif-Web-Regular.ttf"),
+    ("Comfortaa-Regular.ttf", "ofl/comfortaa/Comfortaa%5Bwght%5D.ttf"),
+    # Greek
+    ("GFSDidot-Regular.ttf", "ofl/gfsdidot/GFSDidot-Regular.ttf"),
+    # Arabic
+    ("Amiri-Regular.ttf", "ofl/amiri/Amiri-Regular.ttf"),
+    ("Cairo-Regular.ttf", "ofl/cairo/Cairo%5Bslnt%2Cwght%5D.ttf"),
+    ("Tajawal-Regular.ttf", "ofl/tajawal/Tajawal-Regular.ttf"),
+    # Devanagari / Hindi
+    ("Poppins-Regular.ttf", "ofl/poppins/Poppins-Regular.ttf"),
+    ("NotoSansDevanagari-Regular.ttf", "ofl/notosansdevanagari/NotoSansDevanagari%5Bwdth%2Cwght%5D.ttf"),
+    # Bengali
+    ("TiroBangla-Regular.ttf", "ofl/tirobangla/TiroBangla-Regular.ttf"),
+    # Tamil
+    ("NotoSansTamil-Regular.ttf", "ofl/notosanstamil/NotoSansTamil%5Bwdth%2Cwght%5D.ttf"),
+    # Thai
+    ("Sarabun-Regular.ttf", "ofl/sarabun/Sarabun-Regular.ttf"),
+    ("Kanit-Regular.ttf", "ofl/kanit/Kanit-Regular.ttf"),
+    # Japanese
+    ("NotoSansJP-Regular.ttf", "ofl/notosansjp/NotoSansJP%5Bwght%5D.ttf"),
+    ("ZenMaruGothic-Regular.ttf", "ofl/zenmarugothic/ZenMaruGothic-Regular.ttf"),
+    # Korean
+    ("NotoSansKR-Regular.ttf", "ofl/notosanskr/NotoSansKR%5Bwght%5D.ttf"),
+    ("GamjaFlower-Regular.ttf", "ofl/gamjaflower/GamjaFlower-Regular.ttf"),
+    # Simplified Chinese
+    ("NotoSansSC-Regular.ttf", "ofl/notosanssc/NotoSansSC%5Bwght%5D.ttf"),
+    # Traditional Chinese
+    ("NotoSansTC-Regular.ttf", "ofl/notosanstc/NotoSansTC%5Bwght%5D.ttf"),
+    # Georgian
+    ("NotoSansGeorgian-Regular.ttf", "ofl/notosansgeorgian/NotoSansGeorgian%5Bwdth%2Cwght%5D.ttf"),
+    # Armenian
+    ("NotoSansArmenian-Regular.ttf", "ofl/notosansarmenian/NotoSansArmenian%5Bwdth%2Cwght%5D.ttf"),
+    # Hebrew
+    ("NotoSansHebrew-Regular.ttf", "ofl/notosanshebrew/NotoSansHebrew%5Bwdth%2Cwght%5D.ttf"),
+    # Ethiopic
+    ("NotoSansEthiopic-Regular.ttf", "ofl/notosansethiopic/NotoSansEthiopic%5Bwdth%2Cwght%5D.ttf"),
+    # Symbols / Emoji
+    ("NotoSansSymbols-Regular.ttf", "ofl/notosanssymbols/NotoSansSymbols%5Bwght%5D.ttf"),
+    ("NotoSansSymbols2-Regular.ttf", "ofl/notosanssymbols2/NotoSansSymbols2-Regular.ttf"),
+    ("NotoSansMath-Regular.ttf", "ofl/notosansmath/NotoSansMath-Regular.ttf"),
+    # Decorative / Display
+    ("Lobster-Regular.ttf", "ofl/lobster/Lobster-Regular.ttf"),
+    ("RubikGlitch-Regular.ttf", "ofl/rubikglitch/RubikGlitch-Regular.ttf"),
+    ("Silkscreen-Regular.ttf", "ofl/silkscreen/Silkscreen-Regular.ttf"),
+    ("UnifrakturMaguntia-Regular.ttf", "ofl/unifrakturmaguntia/UnifrakturMaguntia-Book.ttf"),
+]
+
+_GOOGLE_FONTS_BASE_URL = "https://github.com/google/fonts/raw/main/"
+
+
+def _download_google_fonts() -> list[Path]:
+    """Download curated Google Fonts to local cache. Skips already-cached files."""
+    _FONT_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    downloaded: list[Path] = []
+    for filename, url_path in _GOOGLE_FONTS:
+        dest = _FONT_CACHE_DIR / filename
+        if dest.exists() and dest.stat().st_size > 0:
+            downloaded.append(dest)
+            continue
+        url = _GOOGLE_FONTS_BASE_URL + url_path
+        try:
+            urllib.request.urlretrieve(url, dest)
+            downloaded.append(dest)
+        except Exception as e:
+            warnings.warn(f"Failed to download font {filename}: {e}", stacklevel=2)
+            if dest.exists():
+                dest.unlink()
+    return downloaded
+
+
+@lru_cache(maxsize=1)
+def _load_fonts() -> list[tuple[str, tuple[int, ...]]]:
+    """Download (if needed) and load Google Fonts with their supported codepoints."""
+    font_files = _download_google_fonts()
+
+    fonts: list[tuple[str, tuple[int, ...]]] = []
+    for path in font_files:
+        try:
+            tt = TTFont(str(path), fontNumber=0)
+            cmap = tt.getBestCmap()
+            if cmap is None:
+                continue
+            codepoints = tuple(cp for cp in cmap if cp >= 0x20 and chr(cp).isprintable())
+            if len(codepoints) >= 20:
+                fonts.append((str(path), codepoints))
+        except Exception:
+            continue
+
+    if len(fonts) < 20:
+        warnings.warn(
+            f"Only {len(fonts)} usable fonts loaded (expected ~{len(_GOOGLE_FONTS)}). "
+            f"Random text overlays may lack variety.",
+            stacklevel=2,
+        )
+    return fonts
+
+
+def _sample_text_from_font(codepoints: tuple[int, ...], length: int) -> str:
+    """Sample `length` random characters that the font is known to support."""
+    return "".join(chr(random.choice(codepoints)) for _ in range(length))
+
+
+def _overlay_random_text(image: Image.Image) -> Image.Image:
+    """Overlay random unicode strings on the image with random fonts, sizes, rotations, colors, positions."""
+    fonts = _load_fonts()
+    if not fonts:
+        return image
+
+    w, h = image.size
+    result = image.convert("RGBA") if image.mode != "RGBA" else image.copy()
+
+    num_overlays = random.choice([random.randint(1, 30), random.randint(1, 15), random.randint(1, 5)])
+    for _ in range(num_overlays):
+        font_size = random.randint(max(4, h // 30), max(5, h // 6))
+        font_path, codepoints = random.choice(fonts)
+        try:
+            font = ImageFont.truetype(font_path, font_size)
+        except (OSError, Exception):
+            continue
+
+        # some single char, some multichar
+        text_len = 1 if random.random() < 0.8 else random.randint(2, 8)
+        text = _sample_text_from_font(codepoints, text_len)
+
+        color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
+
+        # Render text onto a temporary RGBA image
+        dummy_draw = ImageDraw.Draw(Image.new("RGBA", (1, 1)))
+        bbox = dummy_draw.textbbox((0, 0), text, font=font)
+        tw = bbox[2] - bbox[0] + 4
+        th = bbox[3] - bbox[1] + 4
+        if tw <= 0 or th <= 0:
+            continue
+
+        txt_img = Image.new("RGBA", (tw, th), (0, 0, 0, 0))
+        txt_draw = ImageDraw.Draw(txt_img)
+        txt_draw.text((-bbox[0] + 2, -bbox[1] + 2), text, fill=(*color, 255), font=font)
+
+        # rotate sometimes
+        if random.random() < 0.5:
+            angle = random.choice([random.uniform(0, 360), random.uniform(-20, 20)])
+            txt_img = txt_img.rotate(angle, expand=True, resample=Image.BICUBIC)
+
+        # Paste at random position
+        rw, rh = txt_img.size
+        x = random.randint(-rw // 2, max(0, w - rw // 2))
+        y = random.randint(-rh // 2, max(0, h - rh // 2))
+        result.paste(txt_img, (x, y), txt_img)
+
+    return result.convert(image.mode)
+
+
 def _svg_to_image(svg_file: Path, tile_size: int) -> Image.Image:
     with open(svg_file, "rb") as f:
         svg_data = f.read()
@@ -150,30 +328,6 @@ def _svg_to_image(svg_file: Path, tile_size: int) -> Image.Image:
         bytestring=svg_data, output_width=tile_size, output_height=tile_size
     )
     return Image.open(BytesIO(png_data)).convert("RGBA")
-
-
-def _placeholder_piece(symbol: str, tile_size: int) -> Image.Image:
-    img = Image.new("RGBA", (tile_size, tile_size), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(img)
-    fill = (235, 235, 235, 255) if symbol.isupper() else (35, 35, 35, 255)
-    outline = (20, 20, 20, 255) if symbol.isupper() else (220, 220, 220, 255)
-    margin = max(1, tile_size // 12)
-    draw.ellipse(
-        (margin, margin, tile_size - margin, tile_size - margin),
-        fill=fill,
-        outline=outline,
-        width=max(1, tile_size // 20),
-    )
-    font = ImageFont.load_default()
-    text = symbol.upper()
-    bbox = draw.textbbox((0, 0), text, font=font)
-    tw = bbox[2] - bbox[0]
-    th = bbox[3] - bbox[1]
-    tx = (tile_size - tw) // 2
-    ty = (tile_size - th) // 2
-    text_fill = (15, 15, 15, 255) if symbol.isupper() else (245, 245, 245, 255)
-    draw.text((tx, ty), text, fill=text_fill, font=font)
-    return img
 
 
 def _symbol_to_asset_key(symbol: str) -> str:
@@ -188,14 +342,6 @@ def _load_piece_images(game: str, tile_size: int) -> list[dict[str, Image.Image]
     all_sets: list[dict[str, Image.Image]] = []
     for piece_set in config.piece_sets:
         images: dict[str, Image.Image] = {}
-        if piece_set.use_placeholders:
-            for symbol in spec.piece_symbols:
-                images[_symbol_to_asset_key(symbol)] = _placeholder_piece(
-                    symbol, tile_size
-                )
-            all_sets.append(images)
-            continue
-
         file_names = config.piece_file_names_by_provider.get(piece_set.provider, ())
         set_dir = Path(
             f"resources/pieces/{game}/{piece_set.provider}/{piece_set.set_name}"
@@ -210,37 +356,23 @@ def _load_piece_images(game: str, tile_size: int) -> list[dict[str, Image.Image]
                 img = Image.open(path).convert("RGBA").resize((tile_size, tile_size))
             images[path.stem.lower()] = img
 
-        # Fill missing keys with placeholders so every game can generate data.
+        # Verify all expected pieces are present.
         for symbol in spec.piece_symbols:
             key = _symbol_to_asset_key(symbol)
             if key not in images:
-                images[key] = _placeholder_piece(symbol, tile_size)
+                raise FileNotFoundError(
+                    f"Missing piece image for '{symbol}' (expected key '{key}') "
+                    f"in {set_dir}"
+                )
 
         all_sets.append(images)
 
     if not all_sets:
-        fallback = {
-            _symbol_to_asset_key(s): _placeholder_piece(s, tile_size)
-            for s in spec.piece_symbols
-        }
-        all_sets.append(fallback)
+        raise FileNotFoundError(
+            f"No piece sets found for game '{game}'"
+        )
 
     return all_sets
-
-
-def _list_board_themes(game: str, board_h: int, board_w: int) -> list[Image.Image]:
-    themes: list[Image.Image] = [
-        _random_uniform_board(board_h, board_w),
-        _noisy_gray_board(board_h, board_w).convert("RGBA"),
-        _noisy_color_board(board_h, board_w).convert("RGBA"),
-    ]
-    for path in list_board_theme_paths(game):
-        try:
-            themes.append(open_board_theme(path, board_w=board_w, board_h=board_h))
-        except Exception:
-            continue
-    return themes
-
 
 def _warp_piece_image(img: Image.Image) -> Image.Image:
     w, h = img.size
@@ -448,19 +580,15 @@ class BoardGenerator:
 
     def generate_one(
         self,
-        use_board_background: bool = True,
         board_background: Image.Image | None = None,
     ) -> tuple[Image.Image, common.Position]:
         board_h, board_w = self.board_h, self.board_w
 
-        if use_board_background:
-            current_board = (
-                board_background
-                if board_background is not None
-                else self.generate_board_background(board_w, board_h)
-            )
-        else:
-            current_board = Image.new("RGBA", (board_w, board_h), (0, 0, 0, 0))
+        current_board = (
+            board_background
+            if board_background is not None
+            else self.generate_board_background(board_w, board_h)
+        )
 
         piece_images = random.choice(self.piece_image_sets)
         position = _random_position(self.spec.key)
@@ -468,16 +596,19 @@ class BoardGenerator:
             position, current_board, self.tile_size, piece_images, self.random_offset
         )
 
-        if use_board_background:
-            image = image.convert("RGB")
+        image = image.convert("RGB")
 
-            if random.randint(0, 1) == 1:
-                # we only do this flipping business for games that have a clear "light and dark" piece scheme
-                # games like shogi should use this augmentation without flipping the pieces, since light and dark don't matter.
-                if self.spec.key in [CHESS.key]:
-                    position = _flip_piece_colors(position)
-                    image = ImageOps.invert(image)
-                if self.spec.key in [SHOGI.key]:
-                    image = ImageOps.invert(image)
+        if random.randint(0, 1) == 1:
+            # we only do this flipping business for games that have a clear "light and dark" piece scheme
+            # games like shogi should use this augmentation without flipping the pieces, since light and dark don't matter.
+            if self.spec.key in [CHESS.key]:
+                position = _flip_piece_colors(position)
+                image = ImageOps.invert(image)
+            if self.spec.key in [SHOGI.key]:
+                image = ImageOps.invert(image)
+
+        # 20% chance: overlay random unicode text (10% single char, 10% multichar)
+        if random.random() < 0.8:
+            image = _overlay_random_text(image)
 
         return image, position

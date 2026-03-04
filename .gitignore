@@ -15,6 +15,7 @@ images/tiles
 /resources/fen_images/generated_chessboards_fen
 /resources/chessboards_bbox_images
 /resources/website_screenshots
+/resources/fonts
 /resources/lichess_games
 /resources/pychess_games
 /resources/board_position_images
