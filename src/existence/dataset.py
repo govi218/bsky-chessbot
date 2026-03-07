@@ -10,6 +10,8 @@ from src import consts
 from src.bounding_box.generate_chessboards_bbox import BboxGenerator
 from src.existence.generate_existence import NoboardGenerator
 
+ROTATIONS = [0, 90, 180, 270]
+
 
 default_transforms = torch.nn.Sequential(
     v2.ToDtype(torch.float32),
@@ -66,6 +68,10 @@ class GenerativeExistenceDataset(IterableDataset):
                 image = self.noboard_generator.generate_one()
                 target = 0.0
 
+            angle = random.choice(ROTATIONS)
+            if angle != 0:
+                image = image.rotate(angle, expand=True)
+
             input_img = to_rgb_tensor(image)
 
             while True:
@@ -101,6 +107,10 @@ def generate_fixed_test_set(
         else:
             image = noboard_gen.generate_one()
             target = 0.0
+
+        angle = random.choice(ROTATIONS)
+        if angle != 0:
+            image = image.rotate(angle, expand=True)
 
         input_img = to_rgb_tensor(image)
         input_img = default_transforms(input_img)

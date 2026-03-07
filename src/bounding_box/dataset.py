@@ -11,6 +11,35 @@ from src import consts
 from src.bounding_box.generate_chessboards_bbox import BboxGenerator
 from src.common import AddGaussianNoise, to_rgb_tensor
 
+ROTATIONS = [0, 90, 180, 270]
+
+
+def _rotate_corners(
+    corners: list[tuple[float, float]], angle: int
+) -> list[tuple[float, float]]:
+    """Rotate normalized [0,1] corners (TL, TR, BR, BL) for a square image.
+
+    angle: one of 0, 90, 180, 270 (CCW, matching PIL.Image.rotate).
+    """
+    if angle == 0:
+        return corners
+    if angle == 90:
+        # (x,y) -> (y, 1-x), reorder [TR, BR, BL, TL]
+        reorder = [1, 2, 3, 0]
+        transform = lambda x, y: (y, 1 - x)
+    elif angle == 180:
+        # (x,y) -> (1-x, 1-y), reorder [BR, BL, TL, TR]
+        reorder = [2, 3, 0, 1]
+        transform = lambda x, y: (1 - x, 1 - y)
+    elif angle == 270:
+        # (x,y) -> (1-y, x), reorder [BL, TL, TR, BR]
+        reorder = [3, 0, 1, 2]
+        transform = lambda x, y: (1 - y, x)
+    else:
+        raise ValueError(f"Unsupported angle: {angle}")
+
+    return [transform(*corners[i]) for i in reorder]
+
 augment_transforms = torch.nn.Sequential(
     v2.RandomInvert(p=0.1),
     v2.RandomApply([AddGaussianNoise(std=0.1, scale_to_input_range=True)], p=0.4),
@@ -66,6 +95,10 @@ class GenerativeBboxDataset(IterableDataset):
     def __iter__(self):
         while True:
             image, corners = self.generator.generate_one()
+            angle = random.choice(ROTATIONS)
+            if angle != 0:
+                image = image.rotate(angle, expand=True)
+                corners = _rotate_corners(corners, angle)
             input_img = to_rgb_tensor(image)
 
             do_augment = self.augment_ratio > random.uniform(0, 1)
@@ -109,6 +142,10 @@ def generate_fixed_test_set(
     data = []
     for _ in range(size):
         image, corners = generator.generate_one()
+        angle = random.choice(ROTATIONS)
+        if angle != 0:
+            image = image.rotate(angle, expand=True)
+            corners = _rotate_corners(corners, angle)
         input_img = to_rgb_tensor(image)
         input_img = v2.ToDtype(torch.float32)(input_img)
         input_img = v2.Resize(

@@ -161,8 +161,14 @@ def _perspective_warp(
     return warped
 
 
+@dataclass
+class WarpResult:
+    image: Image.Image = None
+    mask: torch.Tensor = None
+
+
 @torch.no_grad()
-def warp_to_board(img: Image.Image, game: str, max_num_tries=10) -> Image.Image:
+def warp_to_board(img: Image.Image, game: str, max_num_tries=10) -> WarpResult:
 
     pad_factor = 0.05
     pad_x = img.width * pad_factor
@@ -174,7 +180,7 @@ def warp_to_board(img: Image.Image, game: str, max_num_tries=10) -> Image.Image:
 
     for _ in range(0, max_num_tries):
         if img.width == 0 or img.height == 0:
-            return None
+            return WarpResult()
 
         img_tensor = common.to_rgb_tensor(img).float()
         img_tensor = functional.resize(
@@ -186,9 +192,9 @@ def warp_to_board(img: Image.Image, game: str, max_num_tries=10) -> Image.Image:
         else:
             img_tensor = torch.zeros_like(img_tensor)
 
-        corners = get_quad(bbox_model.get(), img_tensor)
+        corners, mask = get_quad(bbox_model.get(), img_tensor)
         if corners is None:
-            return None
+            return WarpResult(mask=mask)
 
         # Scale corners from BBOX_IMAGE_SIZE space to original image space
         x_factor = img.width / consts.BBOX_IMAGE_SIZE
@@ -215,7 +221,10 @@ def warp_to_board(img: Image.Image, game: str, max_num_tries=10) -> Image.Image:
                 side_lengths.append((p2 - p1).norm().item())
             avg_side = sum(side_lengths) / len(side_lengths)
             output_size = max(32, int(avg_side))
-            return _perspective_warp(img, corners_px, output_size)
+            return WarpResult(
+                image=_perspective_warp(img, corners_px, output_size),
+                mask=mask,
+            )
 
         # Crop closer to the quad and retry
         x_addition = quad_w * 0.1
@@ -227,7 +236,7 @@ def warp_to_board(img: Image.Image, game: str, max_num_tries=10) -> Image.Image:
 
         img = img.crop((crop_x1, crop_y1, crop_x2, crop_y2))
 
-    return None
+    return WarpResult()
 
 
 @torch.no_grad()
@@ -298,6 +307,7 @@ class FenResult:
     notation: str = None
     game: str = None
     cropped_image: Image.Image = None
+    bbox_mask: torch.Tensor = None
     image_rotation_angle: int = None
     board_is_flipped: bool = None
 
@@ -336,37 +346,49 @@ def get_fen(
     img = img.convert("RGB")
 
     if not check_for_board_existence(img, spec.key):
+        print("No board in image")
         return None
 
     result = FenResult()
-    result.cropped_image = warp_to_board(img, spec.key, max_num_tries=num_tries)
-    if result.cropped_image is not None:
-        result.image_rotation_angle = board_image_rotation(
-            result.cropped_image, spec.key
+
+    # Existence and bbox models are rotation-invariant, so warp before
+    # detecting rotation — only one warp pass needed.
+    warp = warp_to_board(img, spec.key, max_num_tries=num_tries)
+    result.bbox_mask = warp.mask
+    if warp.image is None:
+        return result
+
+    # Detect rotation on the warped board crop
+    rotation_source = warp.image
+    result.image_rotation_angle = board_image_rotation(rotation_source, spec.key)
+
+    if auto_rotate_image:
+        cropped = warp.image.rotate(
+            -rotation_dataset.ROTATIONS[result.image_rotation_angle], expand=True
         )
 
-        if auto_rotate_image:
-            result.cropped_image = result.cropped_image.rotate(
-                -rotation_dataset.ROTATIONS[result.image_rotation_angle], expand=True
-            )
+        if (
+            mirror_when_180_rotation
+            and rotation_dataset.ROTATIONS[result.image_rotation_angle] == 180
+        ):
+            cropped = ImageOps.mirror(cropped)
+    else:
+        cropped = warp.image
 
-            if (
-                mirror_when_180_rotation
-                and rotation_dataset.ROTATIONS[result.image_rotation_angle] == 180
-            ):
-                result.cropped_image = ImageOps.mirror(result.cropped_image)
+    result.cropped_image = cropped
+    board = get_board_from_cropped_img(result.cropped_image, spec.key)
 
-        board = get_board_from_cropped_img(result.cropped_image, spec.key)
+    if board is None:
+        print("Couldn't crop to board")
+    else:
+        result.board_is_flipped = is_board_flipped(board, spec.key)
 
-        if board is not None:
-            result.board_is_flipped = is_board_flipped(board, spec.key)
+        if auto_rotate_board and result.board_is_flipped:
+            board = rotate_board(board, spec.key)
 
-            if auto_rotate_board and result.board_is_flipped:
-                board = rotate_board(board, spec.key)
-
-            result.fen = board.fen()
-            result.notation = result.fen
-            result.game = spec.key
+        result.fen = board.fen()
+        result.notation = result.fen
+        result.game = spec.key
 
     return result
 
@@ -417,24 +439,28 @@ def demo(root_dir: str, shuffle_files: bool, game: str):
                 print(true_fen)
                 print("WRONG")
 
-        fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(16, 8))
+        fig, (ax1, ax2, ax3, ax4) = plt.subplots(1, 4, figsize=(20, 8))
 
         ax1.imshow(img)
         if fen_result is not None:
+            if fen_result.bbox_mask is not None:
+                ax2.imshow(fen_result.bbox_mask.numpy(), cmap="gray", vmin=0, vmax=1)
             if fen_result.cropped_image is not None:
-                ax2.imshow(fen_result.cropped_image)
+                ax3.imshow(fen_result.cropped_image)
             if fen_result.fen is not None:
                 pos = common.position_from_notation(fen_result.fen, spec)
                 if pos is not None:
                     fen_img = common.get_image(pos, width=512, height=512)
-                    ax3.imshow(fen_img)
+                    ax4.imshow(fen_img)
 
         ax1.axis("off")
         ax2.axis("off")
         ax3.axis("off")
+        ax4.axis("off")
         ax1.title.set_text("Original image")
-        ax2.title.set_text("Cropped to board")
-        ax3.title.set_text("Recognized board")
+        ax2.title.set_text("BBox mask")
+        ax3.title.set_text("Cropped to board")
+        ax4.title.set_text("Recognized board")
         plt.show()
 
 

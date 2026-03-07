@@ -152,7 +152,7 @@ def train(
 
     train_loader = torch.utils.data.DataLoader(
         train_set, batch_size=batch_size, drop_last=True,
-        num_workers=8, persistent_workers=True,
+        num_workers=16, persistent_workers=True,
         collate_fn=dataset.collate_fn,
     )
 

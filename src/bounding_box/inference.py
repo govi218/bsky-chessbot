@@ -54,4 +54,4 @@ def get_quad(model, img: torch.Tensor):
 
         corners = mask_to_corners(mask)
 
-    return corners
+    return corners, mask
