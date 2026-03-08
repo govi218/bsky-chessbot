@@ -13,6 +13,10 @@ class GameSpec:
     # When False (e.g. shogi), pieces are distinguished by orientation rather than color,
     # so image inversion is a valid standalone augmentation.
     color_encodes_piece_side: bool = True
+    # In some games/styles, opposite sides can use different glyphs/shapes for the same
+    # nominal piece type (e.g. distinct ideographs). For those games, image inversion can
+    # corrupt labels because color-flipping the target does not change the glyph itself.
+    sides_may_use_distinct_piece_glyphs: bool = False
     # In real games, opponent pieces may appear physically rotated 180° on the board
     # (e.g. xiangqi discs placed upside-down). When True, each piece is randomly rotated
     # 180° during image generation as a data augmentation.
@@ -80,6 +84,7 @@ XIANGQI = GameSpec(
         ("C", "c"),
         ("P", "p"),
     ),
+    sides_may_use_distinct_piece_glyphs=True,
     opponent_pieces_may_be_rotated=True,
 )
 

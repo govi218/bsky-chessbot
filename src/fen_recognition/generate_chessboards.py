@@ -544,9 +544,8 @@ def _board_to_image(
                 continue
 
             piece_img = per_board_piece_images[_symbol_to_asset_key(piece)]
-            if random.randint(0, 1) == 1:
-                piece_img = ImageOps.mirror(piece_img)
-            if spec.opponent_pieces_may_be_rotated and random.randint(0, 1) == 1:
+            
+            if spec.opponent_pieces_may_be_rotated and random.random() < 0.2:
                 piece_img = piece_img.rotate(180)
 
             x = col * tile_size + random.randint(-random_offset, random_offset)
@@ -639,12 +638,12 @@ class BoardGenerator:
 
         image = image.convert("RGB")
 
-        if random.randint(0, 1) == 1:
+        if random.random() < 0.1 and not self.spec.sides_may_use_distinct_piece_glyphs:
             if self.spec.color_encodes_piece_side:
                 position = _flip_piece_colors(position)
             image = ImageOps.invert(image)
 
-        # 20% chance: overlay random unicode text (10% single char, 10% multichar)
+        # some chance for overlaying random unicode text
         if random.random() < 0.8:
             image = _overlay_random_text(image)
 
