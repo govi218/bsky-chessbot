@@ -30,6 +30,7 @@ models/**/*.png
 !models/best_model_fen_0.943_2024-04-19-09-31-24.pth
 /pychess-variants-server-example
 /fairyfish-example
+/xboard
 /models_old
 /other_piece_repos
 /models_backup_*/

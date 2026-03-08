@@ -1,6 +1,7 @@
 import argparse
 import os
 import random
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -20,7 +21,7 @@ from src.existence.model import BoardExistence
 from src.fen_recognition.model import BoardRec
 from src.games import GAMES, get_game
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = torch.device("cpu")
 
 
 class SomeModel:
@@ -165,23 +166,37 @@ def _perspective_warp(
 class WarpResult:
     image: Image.Image = None
     mask: torch.Tensor = None
+    corners: torch.Tensor = None  # [4, 2] in BBOX_IMAGE_SIZE space
+    timings_ms: dict[str, float] = None
 
 
 @torch.no_grad()
 def warp_to_board(img: Image.Image, game: str, max_num_tries=10) -> WarpResult:
+    t_total_start = time.perf_counter()
+    timings_ms: dict[str, float] = {}
 
     pad_factor = 0.05
     pad_x = img.width * pad_factor
     pad_y = img.height * pad_factor
 
+    t_stage_start = time.perf_counter()
     img = common.pad(img, pad_x, pad_y)
+    timings_ms["pad"] = (time.perf_counter() - t_stage_start) * 1000.0
 
     bbox_model = _get_models(game).bbox
 
-    for _ in range(0, max_num_tries):
-        if img.width == 0 or img.height == 0:
-            return WarpResult()
+    for i in range(0, max_num_tries):
+        t_try_start = time.perf_counter()
 
+        if img.width == 0 or img.height == 0:
+            timings_ms[f"try_{i}.empty_image_check"] = (
+                time.perf_counter() - t_try_start
+            ) * 1000.0
+            timings_ms[f"try_{i}.total"] = (time.perf_counter() - t_try_start) * 1000.0
+            timings_ms["total"] = (time.perf_counter() - t_total_start) * 1000.0
+            return WarpResult(timings_ms=timings_ms)
+
+        t_stage_start = time.perf_counter()
         img_tensor = common.to_rgb_tensor(img).float()
         img_tensor = functional.resize(
             img_tensor, [consts.BBOX_IMAGE_SIZE, consts.BBOX_IMAGE_SIZE]
@@ -191,18 +206,33 @@ def warp_to_board(img: Image.Image, game: str, max_num_tries=10) -> WarpResult:
             img_tensor = (img_tensor - mn) / (mx - mn)
         else:
             img_tensor = torch.zeros_like(img_tensor)
+        timings_ms[f"try_{i}.tensor_prep"] = (
+            time.perf_counter() - t_stage_start
+        ) * 1000.0
 
-        corners, mask = get_quad(bbox_model.get(), img_tensor)
+        t_stage_start = time.perf_counter()
+        corners, mask = get_quad(
+            bbox_model.get(), img_tensor
+        )
+        timings_ms[f"try_{i}.get_quad"] = (time.perf_counter() - t_stage_start) * 1000.0
         if corners is None:
-            return WarpResult(mask=mask)
+            timings_ms[f"try_{i}.total"] = (time.perf_counter() - t_try_start) * 1000.0
+            timings_ms["tries_used"] = float(i + 1)
+            timings_ms["total"] = (time.perf_counter() - t_total_start) * 1000.0
+            return WarpResult(mask=mask, corners=corners, timings_ms=timings_ms)
 
+        t_stage_start = time.perf_counter()
         # Scale corners from BBOX_IMAGE_SIZE space to original image space
         x_factor = img.width / consts.BBOX_IMAGE_SIZE
         y_factor = img.height / consts.BBOX_IMAGE_SIZE
         corners_px = corners.clone()
         corners_px[:, 0] *= x_factor
         corners_px[:, 1] *= y_factor
+        timings_ms[f"try_{i}.scale_corners"] = (
+            time.perf_counter() - t_stage_start
+        ) * 1000.0
 
+        t_stage_start = time.perf_counter()
         # Compute bounding box of quad
         xs = corners_px[:, 0]
         ys = corners_px[:, 1]
@@ -210,23 +240,40 @@ def warp_to_board(img: Image.Image, game: str, max_num_tries=10) -> WarpResult:
         y1, y2 = ys.min().item(), ys.max().item()
         quad_w = x2 - x1
         quad_h = y2 - y1
+        timings_ms[f"try_{i}.quad_bbox"] = (time.perf_counter() - t_stage_start) * 1000.0
 
         # Accept if quad is big relative to image
         if quad_w / img.width > 0.7 and quad_h / img.height > 0.7:
+            t_stage_start = time.perf_counter()
             # Compute output size from average side lengths
             side_lengths = []
-            for i in range(4):
-                p1 = corners_px[i]
-                p2 = corners_px[(i + 1) % 4]
+            for j in range(4):
+                p1 = corners_px[j]
+                p2 = corners_px[(j + 1) % 4]
                 side_lengths.append((p2 - p1).norm().item())
             avg_side = sum(side_lengths) / len(side_lengths)
             output_size = max(32, int(avg_side))
+            timings_ms[f"try_{i}.compute_output_size"] = (
+                time.perf_counter() - t_stage_start
+            ) * 1000.0
+
+            t_stage_start = time.perf_counter()
+            warped = _perspective_warp(img, corners_px, output_size)
+            timings_ms[f"try_{i}.perspective_warp"] = (
+                time.perf_counter() - t_stage_start
+            ) * 1000.0
+            timings_ms[f"try_{i}.total"] = (time.perf_counter() - t_try_start) * 1000.0
+            timings_ms["tries_used"] = float(i + 1)
+            timings_ms["total"] = (time.perf_counter() - t_total_start) * 1000.0
             return WarpResult(
-                image=_perspective_warp(img, corners_px, output_size),
+                image=warped,
                 mask=mask,
+                corners=corners,
+                timings_ms=timings_ms,
             )
 
         # Crop closer to the quad and retry
+        t_stage_start = time.perf_counter()
         x_addition = quad_w * 0.1
         y_addition = quad_h * 0.1
         crop_x1 = int(max(x1 - x_addition, 0))
@@ -235,8 +282,12 @@ def warp_to_board(img: Image.Image, game: str, max_num_tries=10) -> WarpResult:
         crop_y2 = int(min(y2 + y_addition, img.height))
 
         img = img.crop((crop_x1, crop_y1, crop_x2, crop_y2))
+        timings_ms[f"try_{i}.crop_retry"] = (time.perf_counter() - t_stage_start) * 1000.0
+        timings_ms[f"try_{i}.total"] = (time.perf_counter() - t_try_start) * 1000.0
 
-    return WarpResult()
+    timings_ms["tries_used"] = float(max_num_tries)
+    timings_ms["total"] = (time.perf_counter() - t_total_start) * 1000.0
+    return WarpResult(timings_ms=timings_ms)
 
 
 @torch.no_grad()
@@ -308,8 +359,11 @@ class FenResult:
     game: str = None
     cropped_image: Image.Image = None
     bbox_mask: torch.Tensor = None
+    bbox_corners: torch.Tensor = None  # [4, 2] in BBOX_IMAGE_SIZE space
     image_rotation_angle: int = None
     board_is_flipped: bool = None
+    timings_ms: dict[str, float] = None
+    warp_timings_ms: dict[str, float] = None
 
 
 def get_supported_games() -> list[str]:
@@ -342,25 +396,47 @@ def get_fen(
         Returns `None` if there is no board detectable.
     """
     spec = get_game(game)
+    t_total_start = time.perf_counter()
+    timings_ms: dict[str, float] = {}
 
+    t_stage_start = time.perf_counter()
     img = img.convert("RGB")
+    timings_ms["convert_rgb"] = (time.perf_counter() - t_stage_start) * 1000.0
 
+    t_stage_start = time.perf_counter()
     if not check_for_board_existence(img, spec.key):
+        timings_ms["check_for_board_existence"] = (
+            time.perf_counter() - t_stage_start
+        ) * 1000.0
+        timings_ms["total"] = (time.perf_counter() - t_total_start) * 1000.0
         print("No board in image")
         return None
+    timings_ms["check_for_board_existence"] = (
+        time.perf_counter() - t_stage_start
+    ) * 1000.0
 
-    result = FenResult()
+    result = FenResult(timings_ms=timings_ms)
 
+    t_stage_start = time.perf_counter()
     warp = warp_to_board(img, spec.key, max_num_tries=num_tries)
+    timings_ms["warp_to_board"] = (time.perf_counter() - t_stage_start) * 1000.0
     result.bbox_mask = warp.mask
+    result.bbox_corners = warp.corners
+    result.warp_timings_ms = warp.timings_ms
     if warp.image is None:
+        timings_ms["total"] = (time.perf_counter() - t_total_start) * 1000.0
         print("Couldn't crop to board")
         return result
 
     # Detect rotation on the warped board crop
     rotation_source = warp.image
+    t_stage_start = time.perf_counter()
     result.image_rotation_angle = board_image_rotation(rotation_source, spec.key)
+    timings_ms["board_image_rotation"] = (
+        time.perf_counter() - t_stage_start
+    ) * 1000.0
 
+    t_stage_start = time.perf_counter()
     if auto_rotate_image:
         cropped = warp.image.rotate(
             -rotation_dataset.ROTATIONS[result.image_rotation_angle], expand=True
@@ -373,21 +449,34 @@ def get_fen(
             cropped = ImageOps.mirror(cropped)
     else:
         cropped = warp.image
+    timings_ms["auto_rotate_image"] = (time.perf_counter() - t_stage_start) * 1000.0
 
     result.cropped_image = cropped
+    t_stage_start = time.perf_counter()
     board = get_board_from_cropped_img(result.cropped_image, spec.key)
+    timings_ms["get_board_from_cropped_img"] = (
+        time.perf_counter() - t_stage_start
+    ) * 1000.0
 
     if board is None:
         print("Couldn't detect FEN")
     else:
+        t_stage_start = time.perf_counter()
         result.board_is_flipped = is_board_flipped(board, spec.key)
+        timings_ms["is_board_flipped"] = (time.perf_counter() - t_stage_start) * 1000.0
 
         if auto_rotate_board and result.board_is_flipped:
+            t_stage_start = time.perf_counter()
             board = rotate_board(board, spec.key)
+            timings_ms["rotate_board"] = (time.perf_counter() - t_stage_start) * 1000.0
 
+        t_stage_start = time.perf_counter()
         result.fen = board.fen()
         result.notation = result.fen
         result.game = spec.key
+        timings_ms["serialize_fen"] = (time.perf_counter() - t_stage_start) * 1000.0
+
+    timings_ms["total"] = (time.perf_counter() - t_total_start) * 1000.0
 
     return result
 
@@ -416,7 +505,8 @@ def demo(root_dir: str, shuffle_files: bool, game: str):
 
         img = Image.open(file_name).convert("RGB")
 
-        img = img.rotate(random.choice(rotation_dataset.ROTATIONS), expand=True)
+        # img = img.rotate(random.choice(rotation_dataset.ROTATIONS), expand=True)
+        img = img.rotate(270, expand=True)
 
         fen_result = get_fen(img, game=game)
 
@@ -428,12 +518,29 @@ def demo(root_dir: str, shuffle_files: bool, game: str):
         else:
             print(fen_result.fen)
 
+        if fen_result is not None and fen_result.timings_ms is not None:
+            timing_parts = ", ".join(
+                f"{name}={value:.1f}ms" for name, value in fen_result.timings_ms.items()
+            )
+            print(f"Timings: {timing_parts}")
+        if fen_result is not None and fen_result.warp_timings_ms is not None:
+            warp_timing_parts = ", ".join(
+                (
+                    f"{name}={int(value)}"
+                    if name == "tries_used"
+                    else f"{name}={value:.1f}ms"
+                )
+                for name, value in fen_result.warp_timings_ms.items()
+            )
+            print(f"Warp timings: {warp_timing_parts}")
+
         true_fen = common.normalize_position_notation(Path(file_name).stem, spec)
         if true_fen is None:
             print(f"WARNING: Couldn't find ground truth FEN")
         else:
             if (
                 fen_result is not None
+                and fen_result.fen is not None
                 and fen_result.fen.split()[0] == true_fen.split()[0]
             ):
                 print("Correct")
@@ -447,6 +554,11 @@ def demo(root_dir: str, shuffle_files: bool, game: str):
         if fen_result is not None:
             if fen_result.bbox_mask is not None:
                 ax2.imshow(fen_result.bbox_mask.numpy(), cmap="gray", vmin=0, vmax=1)
+            if fen_result.bbox_corners is not None:
+                from matplotlib.patches import Polygon as MplPolygon
+                quad_xy = fen_result.bbox_corners.numpy()
+                patch = MplPolygon(quad_xy, closed=True, fill=False, edgecolor="red", linewidth=2)
+                ax2.add_patch(patch)
             if fen_result.cropped_image is not None:
                 ax3.imshow(fen_result.cropped_image)
             if fen_result.fen is not None:

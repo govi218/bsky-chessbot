@@ -1,3 +1,5 @@
+import cv2
+import numpy as np
 import torch
 
 from src import consts
@@ -5,33 +7,57 @@ from src import consts
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-def mask_to_corners(mask: torch.Tensor) -> torch.Tensor | None:
-    """Extract 4 quad corners from a binary mask [H, W].
+def _order_corners_tl_tr_br_bl(pts: np.ndarray) -> np.ndarray:
+    """Sort 4 points into TL, TR, BR, BL order."""
+    s = pts.sum(axis=1)
+    d = np.diff(pts, axis=1).ravel()
+    return np.array([
+        pts[d.argmax()],   # TR: largest x-y
+        pts[s.argmin()],   # TL: smallest x+y
+        pts[d.argmin()],   # BL: smallest x-y
+        pts[s.argmax()],   # BR: largest x+y
+    ], dtype=np.float32)
+
+
+def mask_to_corners(mask: torch.Tensor, threshold: float = 0.5) -> torch.Tensor | None:
+    """Extract 4 quad corners from a mask [H, W] using contour approximation.
 
     Returns [4, 2] tensor of (x, y) pixel coordinates in order TL, TR, BR, BL,
     or None if the mask is empty.
     """
-    ys, xs = torch.where(mask > 0.5)
-    if len(xs) == 0:
+    mask_np = (mask > threshold).cpu().numpy().astype(np.uint8)
+
+    contours, _ = cv2.findContours(mask_np, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    if not contours:
         return None
 
-    xs_f = xs.float()
-    ys_f = ys.float()
+    # Keep only the largest contour to ignore noise/specs
+    largest_contour = max(contours, key=cv2.contourArea)
 
-    # Find extremal points in each diagonal direction
-    tl_idx = (xs_f + ys_f).argmin()  # minimize x+y
-    tr_idx = (xs_f - ys_f).argmax()  # maximize x-y
-    br_idx = (xs_f + ys_f).argmax()  # maximize x+y
-    bl_idx = (ys_f - xs_f).argmax()  # maximize y-x
+    # Binary search for epsilon that yields exactly 4 points
+    peri = cv2.arcLength(largest_contour, True)
+    min_eps, max_eps = 0.0, 0.2
+    best_approx = None
 
-    corners = torch.tensor([
-        [xs[tl_idx].item(), ys[tl_idx].item()],
-        [xs[tr_idx].item(), ys[tr_idx].item()],
-        [xs[br_idx].item(), ys[br_idx].item()],
-        [xs[bl_idx].item(), ys[bl_idx].item()],
-    ], dtype=torch.float32)
+    for _ in range(20):
+        eps = ((min_eps + max_eps) / 2.0) * peri
+        approx = cv2.approxPolyDP(largest_contour, eps, True)
 
-    return corners
+        if len(approx) == 4:
+            best_approx = approx
+            break
+        elif len(approx) > 4:
+            min_eps = (min_eps + max_eps) / 2.0
+        else:
+            max_eps = (min_eps + max_eps) / 2.0
+
+    # Fallback: minimum area rotated rectangle
+    if best_approx is None:
+        rect = cv2.minAreaRect(largest_contour)
+        best_approx = cv2.boxPoints(rect)
+
+    pts = _order_corners_tl_tr_br_bl(best_approx.reshape(4, 2))
+    return torch.from_numpy(pts)
 
 
 def get_quad(model, img: torch.Tensor):
