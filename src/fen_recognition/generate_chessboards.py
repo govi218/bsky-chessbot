@@ -20,7 +20,7 @@ from pyfastnoiselite.pyfastnoiselite import (
 )
 
 from src import common, consts
-from src.games import CHESS, SHOGI, XIANGQI, get_game
+from src.games import get_game
 from src.render_config import (
     get_render_config,
     list_board_theme_paths,
@@ -156,7 +156,10 @@ _GOOGLE_FONTS = [
     ("OpenSans-Regular.ttf", "ofl/opensans/OpenSans%5Bwdth%2Cwght%5D.ttf"),
     ("Lora-Regular.ttf", "ofl/lora/Lora%5Bwght%5D.ttf"),
     ("Oswald-Regular.ttf", "ofl/oswald/Oswald%5Bwght%5D.ttf"),
-    ("PlayfairDisplay-Regular.ttf", "ofl/playfairdisplay/PlayfairDisplay%5Bwght%5D.ttf"),
+    (
+        "PlayfairDisplay-Regular.ttf",
+        "ofl/playfairdisplay/PlayfairDisplay%5Bwght%5D.ttf",
+    ),
     ("Pacifico-Regular.ttf", "ofl/pacifico/Pacifico-Regular.ttf"),
     ("IndieFlower-Regular.ttf", "ofl/indieflower/IndieFlower-Regular.ttf"),
     ("DancingScript-Regular.ttf", "ofl/dancingscript/DancingScript%5Bwght%5D.ttf"),
@@ -179,11 +182,17 @@ _GOOGLE_FONTS = [
     ("Tajawal-Regular.ttf", "ofl/tajawal/Tajawal-Regular.ttf"),
     # Devanagari / Hindi
     ("Poppins-Regular.ttf", "ofl/poppins/Poppins-Regular.ttf"),
-    ("NotoSansDevanagari-Regular.ttf", "ofl/notosansdevanagari/NotoSansDevanagari%5Bwdth%2Cwght%5D.ttf"),
+    (
+        "NotoSansDevanagari-Regular.ttf",
+        "ofl/notosansdevanagari/NotoSansDevanagari%5Bwdth%2Cwght%5D.ttf",
+    ),
     # Bengali
     ("TiroBangla-Regular.ttf", "ofl/tirobangla/TiroBangla-Regular.ttf"),
     # Tamil
-    ("NotoSansTamil-Regular.ttf", "ofl/notosanstamil/NotoSansTamil%5Bwdth%2Cwght%5D.ttf"),
+    (
+        "NotoSansTamil-Regular.ttf",
+        "ofl/notosanstamil/NotoSansTamil%5Bwdth%2Cwght%5D.ttf",
+    ),
     # Thai
     ("Sarabun-Regular.ttf", "ofl/sarabun/Sarabun-Regular.ttf"),
     ("Kanit-Regular.ttf", "ofl/kanit/Kanit-Regular.ttf"),
@@ -198,22 +207,43 @@ _GOOGLE_FONTS = [
     # Traditional Chinese
     ("NotoSansTC-Regular.ttf", "ofl/notosanstc/NotoSansTC%5Bwght%5D.ttf"),
     # Georgian
-    ("NotoSansGeorgian-Regular.ttf", "ofl/notosansgeorgian/NotoSansGeorgian%5Bwdth%2Cwght%5D.ttf"),
+    (
+        "NotoSansGeorgian-Regular.ttf",
+        "ofl/notosansgeorgian/NotoSansGeorgian%5Bwdth%2Cwght%5D.ttf",
+    ),
     # Armenian
-    ("NotoSansArmenian-Regular.ttf", "ofl/notosansarmenian/NotoSansArmenian%5Bwdth%2Cwght%5D.ttf"),
+    (
+        "NotoSansArmenian-Regular.ttf",
+        "ofl/notosansarmenian/NotoSansArmenian%5Bwdth%2Cwght%5D.ttf",
+    ),
     # Hebrew
-    ("NotoSansHebrew-Regular.ttf", "ofl/notosanshebrew/NotoSansHebrew%5Bwdth%2Cwght%5D.ttf"),
+    (
+        "NotoSansHebrew-Regular.ttf",
+        "ofl/notosanshebrew/NotoSansHebrew%5Bwdth%2Cwght%5D.ttf",
+    ),
     # Ethiopic
-    ("NotoSansEthiopic-Regular.ttf", "ofl/notosansethiopic/NotoSansEthiopic%5Bwdth%2Cwght%5D.ttf"),
+    (
+        "NotoSansEthiopic-Regular.ttf",
+        "ofl/notosansethiopic/NotoSansEthiopic%5Bwdth%2Cwght%5D.ttf",
+    ),
     # Symbols / Emoji
-    ("NotoSansSymbols-Regular.ttf", "ofl/notosanssymbols/NotoSansSymbols%5Bwght%5D.ttf"),
-    ("NotoSansSymbols2-Regular.ttf", "ofl/notosanssymbols2/NotoSansSymbols2-Regular.ttf"),
+    (
+        "NotoSansSymbols-Regular.ttf",
+        "ofl/notosanssymbols/NotoSansSymbols%5Bwght%5D.ttf",
+    ),
+    (
+        "NotoSansSymbols2-Regular.ttf",
+        "ofl/notosanssymbols2/NotoSansSymbols2-Regular.ttf",
+    ),
     ("NotoSansMath-Regular.ttf", "ofl/notosansmath/NotoSansMath-Regular.ttf"),
     # Decorative / Display
     ("Lobster-Regular.ttf", "ofl/lobster/Lobster-Regular.ttf"),
     ("RubikGlitch-Regular.ttf", "ofl/rubikglitch/RubikGlitch-Regular.ttf"),
     ("Silkscreen-Regular.ttf", "ofl/silkscreen/Silkscreen-Regular.ttf"),
-    ("UnifrakturMaguntia-Regular.ttf", "ofl/unifrakturmaguntia/UnifrakturMaguntia-Book.ttf"),
+    (
+        "UnifrakturMaguntia-Regular.ttf",
+        "ofl/unifrakturmaguntia/UnifrakturMaguntia-Book.ttf",
+    ),
 ]
 
 _GOOGLE_FONTS_BASE_URL = "https://github.com/google/fonts/raw/main/"
@@ -251,7 +281,9 @@ def _load_fonts() -> list[tuple[str, tuple[int, ...]]]:
             cmap = tt.getBestCmap()
             if cmap is None:
                 continue
-            codepoints = tuple(cp for cp in cmap if cp >= 0x20 and chr(cp).isprintable())
+            codepoints = tuple(
+                cp for cp in cmap if cp >= 0x20 and chr(cp).isprintable()
+            )
             if len(codepoints) >= 20:
                 fonts.append((str(path), codepoints))
         except Exception:
@@ -280,7 +312,9 @@ def _overlay_random_text(image: Image.Image) -> Image.Image:
     w, h = image.size
     result = image.convert("RGBA") if image.mode != "RGBA" else image.copy()
 
-    num_overlays = random.choice([random.randint(1, 30), random.randint(1, 15), random.randint(1, 5)])
+    num_overlays = random.choice(
+        [random.randint(1, 30), random.randint(1, 15), random.randint(1, 5)]
+    )
     for _ in range(num_overlays):
         font_size = random.randint(max(4, h // 30), max(5, h // 6))
         font_path, codepoints = random.choice(fonts)
@@ -368,11 +402,10 @@ def _load_piece_images(game: str, tile_size: int) -> list[dict[str, Image.Image]
         all_sets.append(images)
 
     if not all_sets:
-        raise FileNotFoundError(
-            f"No piece sets found for game '{game}'"
-        )
+        raise FileNotFoundError(f"No piece sets found for game '{game}'")
 
     return all_sets
+
 
 def _warp_piece_image(img: Image.Image) -> Image.Image:
     w, h = img.size
@@ -458,9 +491,15 @@ def _shift_hue(img: Image.Image, hue_shift: float) -> Image.Image:
     q = v * (1.0 - s * f)
     t = v * (1.0 - s * (1.0 - f))
 
-    r_new = np.select([i == 0, i == 1, i == 2, i == 3, i == 4, i == 5], [v, q, p, p, t, v])
-    g_new = np.select([i == 0, i == 1, i == 2, i == 3, i == 4, i == 5], [t, v, v, q, p, p])
-    b_new = np.select([i == 0, i == 1, i == 2, i == 3, i == 4, i == 5], [p, p, t, v, v, q])
+    r_new = np.select(
+        [i == 0, i == 1, i == 2, i == 3, i == 4, i == 5], [v, q, p, p, t, v]
+    )
+    g_new = np.select(
+        [i == 0, i == 1, i == 2, i == 3, i == 4, i == 5], [t, v, v, q, p, p]
+    )
+    b_new = np.select(
+        [i == 0, i == 1, i == 2, i == 3, i == 4, i == 5], [p, p, t, v, v, q]
+    )
 
     arr_out = np.concatenate([np.stack([r_new, g_new, b_new], axis=-1), alpha], axis=-1)
     return Image.fromarray((np.clip(arr_out, 0, 1) * 255).astype(np.uint8), mode="RGBA")
@@ -507,6 +546,8 @@ def _board_to_image(
             piece_img = per_board_piece_images[_symbol_to_asset_key(piece)]
             if random.randint(0, 1) == 1:
                 piece_img = ImageOps.mirror(piece_img)
+            if spec.opponent_pieces_may_be_rotated and random.randint(0, 1) == 1:
+                piece_img = piece_img.rotate(180)
 
             x = col * tile_size + random.randint(-random_offset, random_offset)
             y = row * tile_size + random.randint(-random_offset, random_offset)
@@ -599,13 +640,9 @@ class BoardGenerator:
         image = image.convert("RGB")
 
         if random.randint(0, 1) == 1:
-            # we only do this flipping business for games that have a clear "light and dark" piece scheme
-            # games like shogi should use this augmentation without flipping the pieces, since light and dark don't matter.
-            if self.spec.key in [CHESS.key]:
+            if self.spec.color_encodes_piece_side:
                 position = _flip_piece_colors(position)
-                image = ImageOps.invert(image)
-            if self.spec.key in [SHOGI.key]:
-                image = ImageOps.invert(image)
+            image = ImageOps.invert(image)
 
         # 20% chance: overlay random unicode text (10% single char, 10% multichar)
         if random.random() < 0.8:

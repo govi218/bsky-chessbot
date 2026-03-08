@@ -351,11 +351,10 @@ def get_fen(
 
     result = FenResult()
 
-    # Existence and bbox models are rotation-invariant, so warp before
-    # detecting rotation — only one warp pass needed.
     warp = warp_to_board(img, spec.key, max_num_tries=num_tries)
     result.bbox_mask = warp.mask
     if warp.image is None:
+        print("Couldn't crop to board")
         return result
 
     # Detect rotation on the warped board crop
@@ -379,7 +378,7 @@ def get_fen(
     board = get_board_from_cropped_img(result.cropped_image, spec.key)
 
     if board is None:
-        print("Couldn't crop to board")
+        print("Couldn't detect FEN")
     else:
         result.board_is_flipped = is_board_flipped(board, spec.key)
 
@@ -433,7 +432,10 @@ def demo(root_dir: str, shuffle_files: bool, game: str):
         if true_fen is None:
             print(f"WARNING: Couldn't find ground truth FEN")
         else:
-            if fen_result is not None and fen_result.fen.split()[0] == true_fen.split()[0]:
+            if (
+                fen_result is not None
+                and fen_result.fen.split()[0] == true_fen.split()[0]
+            ):
                 print("Correct")
             else:
                 print(true_fen)

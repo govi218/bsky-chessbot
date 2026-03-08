@@ -8,6 +8,15 @@ class GameSpec:
     board_cols: int
     piece_symbols: tuple[str, ...]
     color_pairs: tuple[tuple[str, str], ...]
+    # Piece color distinguishes sides (e.g. white/black in chess, red/black in xiangqi).
+    # When True, inverting the board image requires also flipping piece colors in the position.
+    # When False (e.g. shogi), pieces are distinguished by orientation rather than color,
+    # so image inversion is a valid standalone augmentation.
+    color_encodes_piece_side: bool = True
+    # In real games, opponent pieces may appear physically rotated 180° on the board
+    # (e.g. xiangqi discs placed upside-down). When True, each piece is randomly rotated
+    # 180° during image generation as a data augmentation.
+    opponent_pieces_may_be_rotated: bool = False
 
     @property
     def num_squares(self) -> int:
@@ -46,7 +55,22 @@ XIANGQI = GameSpec(
     key="xiangqi",
     board_rows=10,
     board_cols=9,
-    piece_symbols=("R", "N", "B", "A", "K", "C", "P", "r", "n", "b", "a", "k", "c", "p"),
+    piece_symbols=(
+        "R",
+        "N",
+        "B",
+        "A",
+        "K",
+        "C",
+        "P",
+        "r",
+        "n",
+        "b",
+        "a",
+        "k",
+        "c",
+        "p",
+    ),
     color_pairs=(
         ("R", "r"),
         ("N", "n"),
@@ -56,6 +80,7 @@ XIANGQI = GameSpec(
         ("C", "c"),
         ("P", "p"),
     ),
+    opponent_pieces_may_be_rotated=True,
 )
 
 
@@ -64,10 +89,34 @@ SHOGI = GameSpec(
     board_rows=9,
     board_cols=9,
     piece_symbols=(
-        "K", "R", "B", "G", "S", "N", "L", "P",
-        "+R", "+B", "+S", "+N", "+L", "+P",
-        "k", "r", "b", "g", "s", "n", "l", "p",
-        "+r", "+b", "+s", "+n", "+l", "+p",
+        "K",
+        "R",
+        "B",
+        "G",
+        "S",
+        "N",
+        "L",
+        "P",
+        "+R",
+        "+B",
+        "+S",
+        "+N",
+        "+L",
+        "+P",
+        "k",
+        "r",
+        "b",
+        "g",
+        "s",
+        "n",
+        "l",
+        "p",
+        "+r",
+        "+b",
+        "+s",
+        "+n",
+        "+l",
+        "+p",
     ),
     color_pairs=(
         ("K", "k"),
@@ -85,6 +134,7 @@ SHOGI = GameSpec(
         ("+L", "+l"),
         ("+P", "+p"),
     ),
+    color_encodes_piece_side=False,
 )
 
 
@@ -104,5 +154,7 @@ def get_game(game: str | GameSpec) -> GameSpec:
         key = "xiangqi"
 
     if key not in GAMES:
-        raise ValueError(f"Unsupported game: {game}. Supported games: {list(GAMES.keys())}")
+        raise ValueError(
+            f"Unsupported game: {game}. Supported games: {list(GAMES.keys())}"
+        )
     return GAMES[key]
