@@ -136,7 +136,11 @@ def generate_fixed_test_set(
     seed: int = 42,
 ) -> list[tuple[torch.Tensor, torch.Tensor, torch.Tensor]]:
     rng_state = random.getstate()
+    torch_rng_state = torch.random.get_rng_state()
     random.seed(seed)
+    torch.manual_seed(seed)
+
+    augments = v2.RandomApply([augment_transforms], p=0.5)
 
     generator = BboxGenerator(game)
     data = []
@@ -147,6 +151,14 @@ def generate_fixed_test_set(
             image = image.rotate(angle, expand=True)
             corners = _rotate_corners(corners, angle)
         input_img = to_rgb_tensor(image)
+
+        while True:
+            input_img = augments(input_img)
+            if input_img.isnan().any():
+                print("WARNING: Found nan after augmentation. Trying again.")
+                continue
+            break
+
         input_img = v2.ToDtype(torch.float32)(input_img)
         input_img = v2.Resize(
             size=(consts.BBOX_IMAGE_SIZE, consts.BBOX_IMAGE_SIZE),
@@ -162,6 +174,7 @@ def generate_fixed_test_set(
         data.append((input_img, corners_flat, mask))
 
     random.setstate(rng_state)
+    torch.random.set_rng_state(torch_rng_state)
     return data
 
 

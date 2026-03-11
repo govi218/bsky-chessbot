@@ -5,11 +5,11 @@ import torch.optim as optim
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from pathlib import Path
 from tqdm.auto import tqdm
 
 from src.board_orientation import dataset
 from src.board_orientation.model import OrientationModel
+from src.consts import get_training_pgn_files
 import os
 import datetime
 
@@ -60,7 +60,7 @@ def train(
     else:
         print("Using CPU")
 
-    all_files = sorted(Path(pgn_dir).glob("*.pgn"))
+    all_files = get_training_pgn_files(pgn_dir)
     split_idx = max(1, int(len(all_files) * train_test_split))
     train_files = all_files[:split_idx]
     test_files = all_files[split_idx:] if len(all_files) > split_idx else all_files

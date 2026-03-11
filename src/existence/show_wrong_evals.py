@@ -32,7 +32,7 @@ def show_wrong_existence(
             continue
 
         print("WRONG:")
-        print(f"(should be: {target.item()})")
+        print(f"(should be: {target.item()}, but is: {pred.item()})")
         print(correct / total)
 
         img = (img.permute(1, 2, 0) - img.min()) / (img.max() - img.min())

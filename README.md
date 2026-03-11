@@ -1,15 +1,18 @@
 # Chess diagram to FEN
 
-Extract the FEN out of images of chess diagrams.
+Extract the FEN out of images of chess, xiangqi, or shogi diagrams.
 
 It works in multiple steps:
 1. Detect if there exists any chess board in the image
 2. Get a bounding box of the (most prominent) chess board
 3. Check if the board image is rotated by 0, 90, 180, or 270 degrees
-4. Finally detect the FEN by looking at each square tile and predicting the piece (but also getting the entire board as additional input to make distinguishing between black and white pieces easier)
+4. Finally detect the FEN by looking at each square tile and predicting the piece
 5. Detect if the perspective is from blacks or whites perspective (using a simple fully connected NN)
 
 All these steps (except the fifth) basically use some common pretrained convolutional models available via torchvision with slightly modified heads. Detection is made robust using demanding generated training data and augmentations.
+
+Chess works best, xiangqi works fine too, shogi doesn't work very well (and this program also doesn't handle pieces in hand).
+It should be quite possible to add support for other games, at least for ones that are supported by [pychess-variants](https://github.com/gbtami/pychess-variants).
 
 ## Install
 
@@ -45,7 +48,6 @@ img = Image.open("your_image.jpg")
 result = get_fen(
     img=img,
     game="chess",
-    num_tries=10,
     auto_rotate_image=True,
     auto_rotate_board=True
 )
@@ -55,14 +57,14 @@ print(result.fen)
 
 Or use the demo program:
 ```shell
-uv run python chess_diagram_to_fen.py --game chess --dir resources/test_images/real_use_cases/
+uv run python chess_diagram_to_fen.py --game chess --dir resources/test_images/real_use_cases_chess/
 ```
 
 
 ## Train models yourself
 
 ```shell
-bash ./train.sh # trains chess, xiangqi and shogi models
+bash ./train.sh # trains all chess, xiangqi and shogi models
 ```
 
 ... or alternatively manually go through the steps described below
@@ -99,35 +101,37 @@ uv run python main.py train orientation --game chess
 TODO: test if this still works
 
 ```shell
-uv run python main.py eval position --game chess --model_path models/<position-model>.pth
-uv run python main.py eval orientation --game chess --pgn resources/lichess_games/lichess_db_standard_rated_2013-05.pgn --model_path models/<orientation-model>.pth
-uv run python main.py eval image_rotation --game chess --model_path models/<image-rotation-model>.pth
-uv run python main.py eval existence --game chess --model_path models/<existence-model>.pth
+uv run python main.py eval position --game chess --model_path models/chess/<position-model>.pth
+uv run python main.py eval orientation --game chess --model_path models/chess/<orientation-model>.pth
+uv run python main.py eval image_rotation --game chess --model_path models/chess/<image-rotation-model>.pth
+uv run python main.py eval existence --game chess --model_path models/chess/<existence-model>.pth
 ```
 
 ## Examples
 
 ### Successes
 
-<img src="./resources/examples/success/success_1.jpg" width="600px" style="border-radius: 20px;">
+<img src="./resources/examples/success/chess_Figure_5.jpg" width="600px" style="border-radius: 20px;">
 
-<img src="./resources/examples/success/success_2.jpg" width="600px" style="border-radius: 20px;">
+<img src="./resources/examples/success/chess_Figure_1.jpg" width="600px" style="border-radius: 20px;">
 
-<img src="./resources/examples/success/success_3.jpg" width="600px" style="border-radius: 20px;">
+<img src="./resources/examples/success/xiangqi_Figure_8.jpg" width="600px" style="border-radius: 20px;">
 
-<img src="./resources/examples/success/success_4.jpg" width="600px" style="border-radius: 20px;">
+<img src="./resources/examples/success/xiangqi_Figure_2.jpg" width="600px" style="border-radius: 20px;">
 
-<img src="./resources/examples/success/success_5.jpg" width="600px" style="border-radius: 20px;">
+<img src="./resources/examples/success/shogi_Figure_5.jpg" width="600px" style="border-radius: 20px;">
 
 
 ### Failures
 
-<img src="./resources/examples/failure/failure_1.jpg" width="600px" style="border-radius: 20px;">
+<img src="./resources/examples/failure/chess_Figure_4.jpg" width="600px" style="border-radius: 20px;">
 
-<img src="./resources/examples/failure/failure_2.jpg" width="600px" style="border-radius: 20px;">
+<img src="./resources/examples/failure/chess_Figure_7.jpg" width="600px" style="border-radius: 20px;">
 
-<img src="./resources/examples/failure/failure_3.jpg" width="600px" style="border-radius: 20px;">
+<img src="./resources/examples/failure/xiangqi_Figure_5.jpg" width="600px" style="border-radius: 20px;">
 
-<img src="./resources/examples/failure/failure_4.jpg" width="600px" style="border-radius: 20px;">
+<img src="./resources/examples/failure/xiangqi_Figure_7.jpg" width="600px" style="border-radius: 20px;">
 
-<img src="./resources/examples/failure/failure_5.jpg" width="600px" style="border-radius: 20px;">
+<img src="./resources/examples/failure/shogi_Figure_1.jpg" width="600px" style="border-radius: 20px;">
+
+There are more examples in [resources/examples](./resources/examples).

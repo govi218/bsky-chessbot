@@ -94,7 +94,14 @@ def generate_fixed_test_set(
     seed: int = 42,
 ) -> TensorDataset:
     rng_state = random.getstate()
+    torch_rng_state = torch.random.get_rng_state()
     random.seed(seed)
+    torch.manual_seed(seed)
+
+    augments = torch.nn.Sequential(
+        v2.RandomApply([affine_transforms], p=0.8),
+        v2.RandomApply([augment_transforms], p=0.5),
+    )
 
     bbox_gen = BboxGenerator(game)
     noboard_gen = NoboardGenerator()
@@ -113,11 +120,23 @@ def generate_fixed_test_set(
             image = image.rotate(angle, expand=True)
 
         input_img = to_rgb_tensor(image)
-        input_img = default_transforms(input_img)
+
+        while True:
+            input_img = augments(input_img)
+            if input_img.isnan().any():
+                print("WARNING: Found nan after augmentation. Trying again.")
+                continue
+            input_img = default_transforms(input_img)
+            if input_img.isnan().any():
+                print("WARNING: Found nan after default transform. Trying again.")
+                continue
+            break
+
         images.append(input_img)
         targets.append(torch.tensor(target).unsqueeze(0))
 
     random.setstate(rng_state)
+    torch.random.set_rng_state(torch_rng_state)
     return TensorDataset(torch.stack(images), torch.stack(targets))
 
 
