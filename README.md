@@ -9,10 +9,10 @@ It works in multiple steps:
 4. Finally detect the FEN by looking at each square tile and predicting the piece
 5. Detect if the perspective is from blacks or whites perspective (using a simple fully connected NN)
 
-All these steps (except the fifth) basically use some common pretrained convolutional models available via torchvision with slightly modified heads. Detection is made robust using demanding generated training data and augmentations.
+All these steps (except the 5th) basically use some common pretrained convolutional models available via torchvision with slightly modified heads. Detection is made robust using demanding generated training data and augmentations.
 
 Chess works best, xiangqi works fine too, shogi doesn't work very well (and this program also doesn't handle pieces in hand).
-It should be quite possible to add support for other games, at least for ones that are supported by [pychess-variants](https://github.com/gbtami/pychess-variants).
+It should be quite possible to add support for other games, at least for ones that are supported by [pychess-variants](https://github.com/gbtami/pychess-variants) (which is needed for PGN support which you'd need to train the orientation model (see step 5 above)).
 
 ## Install
 
