@@ -31,6 +31,12 @@ uv sync --extra cuda    # CUDA 12.8  (NVIDIA GPUs)
 uv sync --extra rocm    # ROCm 6.4   (AMD GPUs, Linux only)
 ```
 
+You can use download already trained models like this, if you don't want to train them yourself:
+
+```shell
+./download_models.sh
+```
+
 If you want to use this repository as a dependency inside another Python project, install it as editable:
 
 ```shell
