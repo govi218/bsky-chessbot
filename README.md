@@ -98,8 +98,6 @@ uv run python main.py train orientation --game chess
 
 #### Evaluate (optional)
 
-TODO: test if this still works
-
 ```shell
 uv run python main.py eval position --game chess --model_path models/chess/<position-model>.pth
 uv run python main.py eval orientation --game chess --model_path models/chess/<orientation-model>.pth
