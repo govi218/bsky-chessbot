@@ -43,6 +43,9 @@ The bot will:
 ## Docker
 
 ```bash
+# Download models first
+./download_models.sh
+
 # Build and run with docker-compose
 docker-compose up -d
 
