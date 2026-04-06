@@ -16,6 +16,7 @@ COPY chessbot ./chessbot
 COPY chess_diagram_to_fen.py .
 COPY main.py .
 COPY src ./src
+COPY resources ./resources
 COPY models ./models
 
 RUN uv sync --extra cpu
