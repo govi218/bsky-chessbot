@@ -289,6 +289,7 @@ async def process_mention(mention: Mention):
 
     if not images:
         print(f"No images found from @{mention.handle}")
+        await listener.reply(mention, "No chess image found in post or parent.")
         return
 
     # Download first image
@@ -299,6 +300,7 @@ async def process_mention(mention: Mention):
 
     if img is None:
         print("Failed to download image")
+        await listener.reply(mention, "Failed to download image.")
         return
 
     # Save temporarily
@@ -308,7 +310,12 @@ async def process_mention(mention: Mention):
     try:
         # Analyze
         print("Analyzing position...")
-        result = analyze(temp_path)
+        try:
+            result = analyze(temp_path)
+        except Exception as e:
+            print(f"Analysis failed: {e}")
+            await listener.reply(mention, "No chess board detected in image.")
+            return
 
         # Check for turn preference in text
         turn = None
