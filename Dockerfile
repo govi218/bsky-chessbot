@@ -3,6 +3,7 @@ FROM python:3.11-slim
 RUN apt-get update && apt-get install -y \
     stockfish \
     curl \
+    libcairo2-dev \
     && rm -rf /var/lib/apt/lists/*
 
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -25,5 +26,6 @@ RUN if [ ! -f "models/chess/best_model_position_0.977_2026-03-09-00-47-01.pth" ]
 
 ENV BLUESKY_PASSWORD=""
 ENV PYTHONUNBUFFERED=1
+ENV LD_LIBRARY_PATH="/usr/lib:$LD_LIBRARY_PATH"
 
 CMD ["uv", "run", "python", "-m", "chessbot.listener"]
