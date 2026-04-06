@@ -76,8 +76,10 @@ def format_result(result: BotResult, turn: Optional[str] = None) -> str:
     Returns:
         Formatted string for display
     """
+    # Show just the position part of FEN (without turn info)
+    fen_position = result.fen.split()[0] if result.fen else result.fen
     lines = [
-        f"FEN: {result.fen}",
+        f"FEN: {fen_position}",
     ]
 
     if turn is None:
@@ -86,9 +88,9 @@ def format_result(result: BotResult, turn: Optional[str] = None) -> str:
         white_analysis = analyze_fen(result.fen, turn="w")
         black_analysis = analyze_fen(result.fen, turn="b")
 
-        # Format line continuation
-        white_line = ", ".join(white_analysis.continuation_san[:3]) if white_analysis.continuation_san else ""
-        black_line = ", ".join(black_analysis.continuation_san[:3]) if black_analysis.continuation_san else ""
+        # Format line continuation with move numbers
+        white_line = format_line(white_analysis.continuation_san, is_white=True)
+        black_line = format_line(black_analysis.continuation_san, is_white=False)
 
         lines.append(f"White to move: {white_analysis.eval_str}, best: {white_analysis.best_move_san}, line: {white_line}")
         lines.append(f"Black to move: {black_analysis.eval_str}, best: {black_analysis.best_move_san}, line: {black_line}")
@@ -97,6 +99,49 @@ def format_result(result: BotResult, turn: Optional[str] = None) -> str:
         lines.append(f"Best: {result.best_move_san}")
 
         if result.continuation_san:
-            lines.append(f"Line: {' '.join(result.continuation_san[:6])}")
+            is_white = turn == "w"
+            lines.append(f"Line: {format_line(result.continuation_san, is_white)}")
 
     return "\n".join(lines)
+
+
+def format_line(moves: list[str], is_white: bool) -> str:
+    """Format a line of moves with proper move numbers.
+
+    Args:
+        moves: List of moves in SAN format
+        is_white: True if white to move, False if black
+
+    Returns:
+        Formatted line like "1. e4 e5 2. Nf3 Nc6" or "1... e5 2. Nf3 Nc6"
+    """
+    if not moves:
+        return ""
+
+    result = []
+    move_num = 1
+
+    for i, move in enumerate(moves):
+        if is_white:
+            # White to move first
+            if i % 2 == 0:
+                # White's turn - add move number
+                result.append(f"{move_num}. {move}")
+            else:
+                # Black's turn - just the move
+                result.append(move)
+                move_num += 1
+        else:
+            # Black to move first
+            if i == 0:
+                # First move - "1... move"
+                result.append(f"1... {move}")
+            elif i % 2 == 1:
+                # White's turn - add move number
+                result.append(f"{move_num}. {move}")
+                move_num += 1
+            else:
+                # Black's subsequent moves - just the move
+                result.append(move)
+
+    return " ".join(result)

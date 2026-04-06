@@ -59,9 +59,14 @@ def analyze_fen(
 
         # Get continuation (principal variation)
         pv = info.get("pv", [])
-        continuation = [move.uci() for move in pv[:6]]
+
+        # If mate, show full line; otherwise show 6 moves
+        is_mate = score.is_mate()
+        num_moves = len(pv) if is_mate else min(6, len(pv))
+
+        continuation = [move.uci() for move in pv[:num_moves]]
         continuation_san = []
-        for move in pv[:6]:
+        for move in pv[:num_moves]:
             continuation_san.append(board.san(move))
             board.push(move)  # Apply move to board for next SAN
 
