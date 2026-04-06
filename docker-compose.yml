@@ -1,0 +1,6 @@
+services:
+  chessbot:
+    build: .
+    env_file:
+      - .env
+    restart: unless-stopped

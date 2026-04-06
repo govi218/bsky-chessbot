@@ -1,0 +1,14 @@
+.git
+.gitignore
+*.pyc
+__pycache__
+.env
+.venv
+*.ipynb
+.ipynb_checkpoints
+README.md
+resources
+*.png
+*.jpg
+*.jpeg
+playground.ipynb
