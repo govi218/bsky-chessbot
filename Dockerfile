@@ -4,10 +4,12 @@ RUN apt-get update && apt-get install -y \
     stockfish \
     curl \
     libcairo2-dev \
+    libgl1 \
+    libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
-ENV PATH="/root/.local/bin:$PATH"
+ENV PATH="/root/.local/bin:/usr/games:$PATH"
 
 WORKDIR /app
 
