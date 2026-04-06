@@ -1,6 +1,6 @@
-# Chess diagram to FEN
+# bsky-chessbot
 
-Extract the FEN out of images of chess, xiangqi, or shogi diagrams. Includes Stockfish analysis for chess position evaluation.
+Extract the FEN out of images of chess, xiangqi, or shogi diagrams. Includes Stockfish analysis for chess position evaluation and a Bluesky bot for automatic position analysis.
 
 ## Quick Start
 
@@ -18,9 +18,37 @@ from chessbot import analyze, format_result
 result = analyze("screenshot.png")
 print(format_result(result))
 # FEN: rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR
-# Eval: +0.3
-# Best: e5
-# Line: e5 Nf3 Nc6 Bb5
+# White to move: +0.4, best: e4, line: 1. e4 e5 2. Nf3 Nc6
+# Black to move: +0.4, best: e5, line: 1... e5 2. Nf3 Nc6
+```
+
+## Bluesky Bot
+
+Mention `@chess.glados.computer` with an image (or reply to a post with an image) to get automatic position analysis.
+
+```bash
+# Set up environment
+echo "BLUESKY_PASSWORD=your_password" > .env
+
+# Run the bot
+uv run python -m chessbot.listener
+```
+
+The bot will:
+- Detect chess positions in images
+- Show evaluation and best moves for both white and black to move
+- Include "white" or "black" in your mention to specify turn
+- Handle reply comments (analyzes parent post's image)
+
+## Docker
+
+```bash
+# Build and run with docker-compose
+docker-compose up -d
+
+# Or build manually
+docker build -t chessbot .
+docker run -d --env-file .env chessbot
 ```
 
 ## How it works
