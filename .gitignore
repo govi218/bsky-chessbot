@@ -35,3 +35,5 @@ models/**/*.png
 /other_piece_repos
 /models_backup_*/
 /ablation_results
+.letta
+.ipynb_checkpoints

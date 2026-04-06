@@ -1,8 +1,30 @@
 # Chess diagram to FEN
 
-Extract the FEN out of images of chess, xiangqi, or shogi diagrams.
+Extract the FEN out of images of chess, xiangqi, or shogi diagrams. Includes Stockfish analysis for chess position evaluation.
 
-It works in multiple steps:
+## Quick Start
+
+```bash
+git clone https://github.com/govi218/Chess_diagram_to_FEN.git
+cd Chess_diagram_to_FEN
+uv sync --extra cpu
+./download_models.sh
+brew install stockfish  # macOS
+```
+
+```python
+from chessbot import analyze, format_result
+
+result = analyze("screenshot.png")
+print(format_result(result))
+# FEN: rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR
+# Eval: +0.3
+# Best: e5
+# Line: e5 Nf3 Nc6 Bb5
+```
+
+## How it works
+
 1. Detect if there exists any chess board in the image
 2. Get a bounding box of the (most prominent) chess board
 3. Check if the board image is rotated by 0, 90, 180, or 270 degrees
@@ -12,14 +34,13 @@ It works in multiple steps:
 All these steps (except the 5th) basically use some common pretrained convolutional models available via torchvision with slightly modified heads. Detection is made robust using demanding generated training data and augmentations.
 
 Chess works best, xiangqi works fine too, shogi doesn't work very well (and this program also doesn't handle pieces in hand).
-It should be quite possible to add support for other games, at least for ones that are supported by [pychess-variants](https://github.com/gbtami/pychess-variants) (which is needed for PGN support which you'd need to train the orientation model (see step 5 above)).
 
 ## Install
 
 Install [uv](https://docs.astral.sh/uv/getting-started/installation/) and then clone the project:
 
 ```shell
-git clone "https://github.com/tsoj/Chess_diagram_to_FEN.git"
+git clone "https://github.com/govi218/Chess_diagram_to_FEN.git"
 cd Chess_diagram_to_FEN
 ```
 
@@ -31,20 +52,47 @@ uv sync --extra cuda    # CUDA 12.8  (NVIDIA GPUs)
 uv sync --extra rocm    # ROCm 6.4   (AMD GPUs, Linux only)
 ```
 
-You can use download already trained models like this, if you don't want to train them yourself:
+Download pretrained models:
 
 ```shell
 ./download_models.sh
 ```
 
-If you want to use this repository as a dependency inside another Python project, install it as editable:
+Install Stockfish for position analysis:
 
 ```shell
-# from the consuming project (you might need to adjust the path to Chess_diagram_to_FEN)
-uv add --editable ../Chess_diagram_to_FEN
+brew install stockfish  # macOS
+sudo apt install stockfish  # Linux
 ```
 
 ## Usage
+
+### Chessbot API (recommended)
+
+Full pipeline with Stockfish analysis:
+
+```python
+from chessbot import analyze, format_result
+
+result = analyze("screenshot.png", depth=20, turn="w")
+print(format_result(result))
+```
+
+Individual modules:
+
+```python
+from chessbot import image_to_fen, analyze_fen
+
+# Just FEN detection
+fen = image_to_fen("screenshot.png")
+print(fen.fen)
+
+# Analyze existing FEN
+analysis = analyze_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR", depth=15)
+print(f"Best move: {analysis.best_move_san}")
+```
+
+### Low-level API
 
 ```python
 from PIL import Image
@@ -61,7 +109,8 @@ result = get_fen(
 print(result.fen)
 ```
 
-Or use the demo program:
+### CLI
+
 ```shell
 uv run python chess_diagram_to_fen.py --game chess --dir resources/test_images/real_use_cases_chess/
 ```

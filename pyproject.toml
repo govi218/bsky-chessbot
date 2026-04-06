@@ -27,6 +27,10 @@ dependencies = [
   "pyfastnoiselite",
   "gdown",
   "opencv-python>=4.13.0.92",
+  "ipykernel>=7.2.0",
+  "chess",
+  "websockets",
+  "httpx",
 ]
 
 [project.optional-dependencies]
