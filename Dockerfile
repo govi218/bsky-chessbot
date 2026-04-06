@@ -10,7 +10,7 @@ ENV PATH="/root/.local/bin:$PATH"
 
 WORKDIR /app
 
-COPY pyproject.toml uv.lock ./
+COPY pyproject.toml uv.lock README.md ./
 COPY chessbot ./chessbot
 COPY chess_diagram_to_fen.py .
 COPY main.py .

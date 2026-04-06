@@ -6,7 +6,6 @@ __pycache__
 .venv
 *.ipynb
 .ipynb_checkpoints
-README.md
 resources
 *.png
 *.jpg
