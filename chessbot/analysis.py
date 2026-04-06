@@ -48,10 +48,16 @@ def analyze_fen(
         score = info["score"].relative
         best_move = info.get("pv", [None])[0]
 
+        # Get best move SAN before modifying board
+        best_move_san = board.san(best_move) if best_move else None
+
         # Get continuation (principal variation)
         pv = info.get("pv", [])
         continuation = [move.uci() for move in pv[:6]]
-        continuation_san = [board.san(move) for move in pv[:6]]
+        continuation_san = []
+        for move in pv[:6]:
+            continuation_san.append(board.san(move))
+            board.push(move)  # Apply move to board for next SAN
 
         # Format evaluation
         if score.is_mate():
@@ -68,7 +74,7 @@ def analyze_fen(
             eval_cp=cp,
             eval_str=eval_str,
             best_move=best_move.uci() if best_move else None,
-            best_move_san=board.san(best_move) if best_move else None,
+            best_move_san=best_move_san,
             continuation=continuation,
             continuation_san=continuation_san,
             mate=mate_in

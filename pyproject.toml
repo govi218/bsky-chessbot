@@ -31,6 +31,9 @@ dependencies = [
   "chess",
   "websockets",
   "httpx",
+  "atproto",
+  "python-dotenv",
+  "dotenv>=0.9.9",
 ]
 
 [project.optional-dependencies]

@@ -37,3 +37,4 @@ models/**/*.png
 /ablation_results
 .letta
 .ipynb_checkpoints
+.env
