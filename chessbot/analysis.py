@@ -36,9 +36,15 @@ def analyze_fen(
     Returns:
         AnalysisResult with evaluation and best moves
     """
-    # Add turn to FEN if not present
-    if len(fen.split()) == 1:
+    # Add/override turn in FEN
+    parts = fen.split()
+    if len(parts) == 1:
+        # Just position, add everything
         fen = f"{fen} {turn} - - 0 1"
+    else:
+        # Full FEN, override turn
+        parts[1] = turn
+        fen = " ".join(parts)
 
     board = chess.Board(fen)
 

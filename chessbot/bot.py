@@ -66,22 +66,37 @@ def analyze(
     )
 
 
-def format_result(result: BotResult) -> str:
+def format_result(result: BotResult, turn: Optional[str] = None) -> str:
     """Format bot result as human-readable string.
 
     Args:
         result: BotResult from analyze()
+        turn: Whose turn, 'w' or 'b'. If None, shows both.
 
     Returns:
         Formatted string for display
     """
     lines = [
         f"FEN: {result.fen}",
-        f"Eval: {result.eval_str}",
-        f"Best: {result.best_move_san}",
     ]
 
-    if result.continuation_san:
-        lines.append(f"Line: {' '.join(result.continuation_san[:6])}")
+    if turn is None:
+        # Show both perspectives
+        from .analysis import analyze_fen
+        white_analysis = analyze_fen(result.fen, turn="w")
+        black_analysis = analyze_fen(result.fen, turn="b")
+
+        # Format line continuation
+        white_line = ", ".join(white_analysis.continuation_san[:3]) if white_analysis.continuation_san else ""
+        black_line = ", ".join(black_analysis.continuation_san[:3]) if black_analysis.continuation_san else ""
+
+        lines.append(f"White to move: {white_analysis.eval_str}, best: {white_analysis.best_move_san}, line: {white_line}")
+        lines.append(f"Black to move: {black_analysis.eval_str}, best: {black_analysis.best_move_san}, line: {black_line}")
+    else:
+        lines.append(f"Eval: {result.eval_str}")
+        lines.append(f"Best: {result.best_move_san}")
+
+        if result.continuation_san:
+            lines.append(f"Line: {' '.join(result.continuation_san[:6])}")
 
     return "\n".join(lines)
