@@ -32,6 +32,8 @@ class Mention:
     cid: str  # Content ID
     images: list[tuple[str, str]]  # List of (did, blob_cid) tuples
     timestamp: int  # Unix microseconds
+    root_uri: Optional[str] = None  # Thread root URI
+    root_cid: Optional[str] = None  # Thread root CID
     parent_uri: Optional[str] = None  # Parent post URI if this is a reply
     parent_cid: Optional[str] = None  # Parent post CID
 
@@ -78,11 +80,10 @@ class ChessBotListener:
             "cid": mention.cid
         }
 
-        # If mention is a reply, use its root; otherwise mention is the root
-        if mention.parent_uri:
-            # Need to fetch the root from the thread
-            # For now, use parent as root (will be corrected if needed)
-            root_ref = {"uri": mention.parent_uri, "cid": mention.parent_cid or ""}
+        # If mention is a reply, use its thread root; otherwise mention is the root
+        if mention.root_uri:
+            # Use the thread root from the mention's reply record
+            root_ref = {"uri": mention.root_uri, "cid": mention.root_cid or ""}
         else:
             root_ref = parent_ref
 
@@ -224,11 +225,15 @@ class ChessBotListener:
         # Extract images
         images = self._extract_images(event)
 
-        # Extract parent info if this is a reply
+        # Extract reply refs (root and parent) if this is a reply
+        root_uri = None
+        root_cid = None
         parent_uri = None
         parent_cid = None
         reply = record.get("reply", {})
         if reply:
+            root_uri = reply.get("root", {}).get("uri")
+            root_cid = reply.get("root", {}).get("cid")
             parent_uri = reply.get("parent", {}).get("uri")
             parent_cid = reply.get("parent", {}).get("cid")
 
@@ -241,6 +246,8 @@ class ChessBotListener:
             cid=commit.get("cid", ""),
             images=images,
             timestamp=event["time_us"],
+            root_uri=root_uri,
+            root_cid=root_cid,
             parent_uri=parent_uri,
             parent_cid=parent_cid
         )
@@ -280,12 +287,19 @@ async def process_mention(mention: Mention):
     listener = ChessBotListener()
     images = mention.images
 
-    # If no images in mention, check parent post
+    # If no images in mention, check parent and root posts
     if not images and mention.parent_uri:
         print(f"No images in mention, checking parent post... {mention}")
         parent_images = await listener._fetch_parent_images(mention.parent_uri)
         if parent_images:
             images = parent_images
+
+    # Also check root if different from parent
+    if not images and mention.root_uri and mention.root_uri != mention.parent_uri:
+        print(f"No images in parent, checking root post...")
+        root_images = await listener._fetch_parent_images(mention.root_uri)
+        if root_images:
+            images = root_images
 
     if not images:
         print(f"No images found from @{mention.handle}")
